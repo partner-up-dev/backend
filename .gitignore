@@ -1,0 +1,43 @@
+# Python
+__pycache__/*
+.venv/*
+*.pyc
+.pdm-python
+
+# Environment variables
+.env
+.env.local
+
+logs/*
+scripts/*
+*.log
+*.local.json
+data/json/*
+
+# 密钥文件
+*.pem
+*.crt
+*.key
+*.p12
+
+# 翻译文件
+*.mo 
+
+
+*.bak
+*.dat
+*.dir
+*.lock
+
+# IDE 插件
+.VSCodeCounter/*
+
+# IDE 配置
+.vscode/launch.json
+.vscode/settings.json
+.idea/*
+
+# 二进制大文件
+*.ttf
+app/managers/.DS_Store
+.vscode/mcp.json

@@ -1,0 +1,19 @@
+{
+    "files.exclude": {
+        "**/.venv": true
+    },
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "error" 
+    },
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.extraPaths": [
+        // BlueFirmament Path
+        // Main-Py Path
+    ]
+}

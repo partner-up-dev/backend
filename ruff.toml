@@ -1,0 +1,59 @@
+line-length = 98
+
+[lint]
+# Start with a base of common rules and then add specifics.
+# E: pycodestyle errors
+# F: Pyflakes
+# B: flake8-bugbear
+# S: flake8-bandit (security)
+# UP: pyupgrade
+# SIM: flake8-simplify
+# I: isort (import sorting)
+# PL: Pylint
+# D: pydocstyle
+# RUF: Ruff-specific rules
+select = [
+    "E501",  # line length limit
+    "F821",  # undefined-name
+    "B006",  # mutable-argument-default
+    "E722",  # bare-except
+    "PLE0101", # return-in-init (Pylint)
+    "RUF006", # asyncio-dangling-task
+
+    "S105",  # hardcoded-password-string (Bandit)
+    "S301",  # suspicious-pickle-usage (Bandit)
+    "S307",  # suspicious-eval-usage (Bandit)
+    "S602",  # subprocess-popen-with-shell-equals-true (Bandit)
+    "S603",  # subprocess-without-shell-equals-true (Bandit)
+
+    "F401",  # unused-import
+    # "E501",  # line-too-long
+
+    # Pydocstyle rules for documenting public API
+    # "D100",  # Missing docstring in public module
+    # "D101",  # Missing docstring in public class
+    # "D102",  # Missing docstring in public method
+    # "D103",  # Missing docstring in public function
+
+    "PLR0913", # too-many-arguments (Pylint)
+
+    "UP007", # non-pep604-annotation (pyupgrade)
+    "UP032", # f-string (pyupgrade)
+
+    "SIM115", # open-file-with-context-handler (flake8-simplify)
+    "PLW1510", # subprocess-run-without-check (Pylint)
+    "RUF100", # unused-noqa
+]
+
+# Optional: If you want to enable all rules from certain categories and then ignore some,
+# you could do something like:
+# select = ["E", "F", "B", "S", "UP", "SIM", "I", "PL", "D", "RUF"]
+# ignore = ["D203", "D212"] # Example ignores for pydocstyle
+
+# To enable McCabe complexity checks (C901), you might need to set a max complexity.
+# If not set, Ruff uses a default.
+# [lint.mccabe]
+# max-complexity = 10
+
+[lint.pycodestyle]
+max-line-length = 98

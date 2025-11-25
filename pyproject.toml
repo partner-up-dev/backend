@@ -1,0 +1,42 @@
+[project]
+name = "partnerup-backend"
+version = "0.3.0"
+description = "PartnerUp Backend"
+authors = [
+    { name = "Lanzhijiang", email = "lanzhijiang@foxmail.com" },
+    { name = "Minori", email = "minori@partner-up.cn" },
+]
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+dependencies = [
+    "celery>=5.4.0,<6.0.0",
+    "redis>=5.2.0,<6.0.0",
+    "requests>=2.32.3,<3.0.0",
+    "aiohttp>=3.12.13,<4.0.0",
+    "reportlab>=4.2.2,<5.0.0",
+    "wechatpayv3>=1.2.52,<2.0.0",
+    "structlog>=25.3.0,<26.0.0",
+    "pyhanko[opentype]>=0.26.0,<0.27.0",
+    "supabase-auth>=2.12.0,<3.0.0",
+    "blue-firmament>=0.2.0,<0.3.0",
+    "python-dotenv>=1.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.3,<9.0.0",
+    "pytest-asyncio>=1.0.0,<2.0.0",
+    "pyrefly>=0.28.1,<0.29.0",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.pdm]
+distribution = false
+
+[tool.pyrefly]
