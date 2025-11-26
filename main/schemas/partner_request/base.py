@@ -1,40 +1,21 @@
 """搭子请求基础数据模型"""
 
-# __module_name__ = "PartnerRequestCommonSchema"
-
-# schemas
 import datetime
 import enum
 import typing
-from typing import Optional as Opt, Literal as Lit
+import sqlalchemy
+import sqlmodel
+from typing import Optional as Opt
+from pydantic import BaseModel
 
-from blue_firmament.dal.query_components.operators import OrOperator
-from blue_firmament.scheme import (
-    BusinessScheme,
-    field,
-    FieldT,
-    scheme_validator,
-    StrConverter,
-    OptionalConveter,
-    EditableScheme,
-)
-from blue_firmament.scheme.enum import Status
-from blue_firmament.scheme.field import Field
-from blue_firmament.utils.datetime_ import get_datetimez
-from blue_firmament.task.context import SoCommonTC
-from dal import SupabaseAnonPostgrest
-
-from .partner import Partner
-from ..contract import ContractRef
 from account.schemas import AccountRef
 
 if typing.TYPE_CHECKING:
     from communication.schemas.chat import ChatRef
 
 
-# t = i18n.get_translator(__module_name__)
-# def _(message: str) -> str:
-#     return message
+PartnerRequestRef: typing.TypeAlias = int
+ContractRef: typing.TypeAlias = int
 
 
 class PartnerRequestType(enum.Enum):
@@ -70,13 +51,8 @@ class PartnerRequestL2Type(enum.Enum):
     """旅游搭子"""
 
 
-class PartnerRequestStatus(Status):
-    """搭子请求状态
-
-    Docs
-    ----
-    - `SIYUAN <siyuan://blocks/20250429142821-ilmfo3s>`_
-    """
+class PartnerRequestStatus(enum.Enum):
+    """搭子请求状态"""
 
     DRAFT = "draft"
     JOINABLE = "joinable"
@@ -95,12 +71,7 @@ class PartnerRequestStatus(Status):
     """已合并"""
 
     def next(self) -> "PartnerRequestStatus":
-        """下一个状态
-
-        正常流转模式
-
-        :raises ValueError: 如果没有下一个状态
-        """
+        """下一个状态"""
         if self == PartnerRequestStatus.DRAFT:
             return PartnerRequestStatus.JOINABLE
         elif self == PartnerRequestStatus.JOINABLE:
@@ -113,27 +84,6 @@ class PartnerRequestStatus(Status):
             return PartnerRequestStatus.CLOSED
 
         raise ValueError("No next status for %s" % self)
-
-    def to_joinable(self) -> "Lit[PartnerRequestStatus.JOINABLE]":
-        """切换到可加入"""
-        return self._to_target_status(PartnerRequestStatus.JOINABLE, PartnerRequestStatus.DRAFT)
-
-    def to_cancelled(self) -> "Lit[PartnerRequestStatus.CANCELLED]":
-        """切换到取消
-
-        可取消状态：siyuan://blocks/20250501180657-h1m6k55
-        """
-        return self._to_target_status(
-            self.CANCELLED,
-            self.JOINABLE,
-            self.READY,
-        )
-
-    def to_ready(self):
-        return self._to_target_status(self.READY, self.JOINABLE, self.SETTLING)
-
-    def to_merged(self):
-        return self._to_target_status(self.MERGED, self.JOINABLE)
 
     def is_draft(self) -> bool:
         return self == PartnerRequestStatus.DRAFT
@@ -174,168 +124,61 @@ class PartnerRequestListType(enum.Enum):
     """草稿搭子请求"""
 
 
-type PRTitleT = Opt[str]
+class PartnerRequest(sqlmodel.SQLModel, table=True):
+    """Partner request database model."""
+    __tablename__ = "partner_request"  # type: ignore
+    __table_args__ = {"schema": "base"}
 
-
-class PRTitle(Field[PRTitleT]):
-    def __init__(self, **kwargs):
-        kwargs["default"] = None
-        kwargs["converter"] = OptionalConveter(tp_converter=StrConverter(min=3, max=12))
-        super().__init__(**kwargs)
-
-
-type PRIntroductionT = Opt[str]
-
-
-class PRIntroudction(Field[PRIntroductionT]):
-    def __init__(self, **kwargs):
-        kwargs["default"] = None
-        kwargs["converter"] = OptionalConveter(tp_converter=StrConverter(min=6, max=60))
-        super().__init__(**kwargs)
-
-
-PartnerRequestRef: typing.TypeAlias = int
-
-
-class PartnerRequest(
-    BusinessScheme[PartnerRequestRef],
-    SoCommonTC,
-    key_type=PartnerRequestRef,
-    dump_flags={
-        "_id": {
-            "managed",
-        }
-    },
-    dal=SupabaseAnonPostgrest,
-    dal_path=("base", "partner_request"),
-):
-    type: FieldT[PartnerRequestL2Type] = field(
-        dump_flags={
-            "managed",
-        }
-    )
-    """搭子请求类型
-    """
-    status: FieldT[PartnerRequestStatus] = field(
-        default=PartnerRequestStatus.DRAFT,
-        dump_flags={
-            "managed",
-        },
-    )
-    """搭子请求状态
-    """
-    created_at: FieldT[datetime.datetime] = field(
-        default_factory=get_datetimez,
-        dump_flags={
-            "managed",
-        },
-    )
-    created_by: FieldT[AccountRef] = field(
-        dump_flags={
-            "managed",
-        }
-    )
-    chat: FieldT[Opt["ChatRef"]] = field(
+    id: Opt[PartnerRequestRef] = sqlmodel.Field(
+        sa_column=sqlmodel.Column(sqlmodel.Integer, primary_key=True, autoincrement=True),
         default=None,
-        dump_flags={
-            "managed",
-        },
     )
-    contract: FieldT[Opt[ContractRef]] = field(
-        default=None,
-        dump_flags={
-            "managed",
-        },
+    type: str = sqlmodel.Field(sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False))
+    """搭子请求类型"""
+    status: str = sqlmodel.Field(default=PartnerRequestStatus.DRAFT.value)
+    """搭子请求状态"""
+    created_at: datetime.datetime = sqlmodel.Field(
+        default_factory=datetime.datetime.now,
+        sa_column=sqlalchemy.Column(
+            sqlalchemy.TIMESTAMP(timezone=True),
+            server_default=sqlalchemy.text("CURRENT_TIMESTAMP"),
+        ),
     )
-    title: PRTitle = PRTitle()
-    introduction: PRIntroudction = PRIntroudction()
-
-    @scheme_validator
-    def chat_not_nullable(self, **_) -> None:
-        """聊天 ID 在草稿之外不能为空"""
-        if self.status != PartnerRequestStatus.DRAFT:
-            if not self.chat:
-                raise ValueError("chat is not nullable after draft")
-
-    async def is_partner(
-        self,
-        account_id: AccountRef,
-        include_history: bool = False,
-        include_created_by: bool = False,
-    ) -> bool:
-        """是否为该搭子请求的搭子
-
-        :param account_id: 用户 ID
-        :param include_history: 是否包含历史搭子
-        :param include_created_by: 创建者算不算
-        """
-        if include_created_by and self.created_by == account_id:
-            return True
-
-        res = await self._daos(Partner).select(
-            Partner.partner_request.equals(self._id),
-            (
-                Partner.player.equals(account_id)
-                if not include_history
-                else OrOperator(
-                    Partner.player.equals(account_id), Partner.history.contains([account_id])
-                )
-            ),
-        )
-        return len(res) > 0
-
-    @staticmethod
-    def _is_partner(
-        partners: list["Partner"],
-        account_id: AccountRef,
-        include_history: bool = False,
-    ) -> bool:
-        """是否在搭子列表中"""
-        res = any(partner.player == account_id for partner in partners)
-        # 没有依赖 partner_account_ids，这样可以避免全量遍历
-
-        if not res:
-            if include_history:
-                res = any(account_id in partner.history for partner in partners)
-        return res
+    created_by: AccountRef = sqlmodel.Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.String, nullable=False)
+    )
+    chat: Opt[int] = sqlmodel.Field(default=None)
+    contract: Opt[ContractRef] = sqlmodel.Field(default=None)
+    title: Opt[str] = sqlmodel.Field(default=None)
+    introduction: Opt[str] = sqlmodel.Field(default=None)
 
     def is_admin(self, account_id: AccountRef) -> bool:
-        """是否为管理员
-
-        创建者是管理员
-        """
+        """是否为管理员"""
         return self.created_by == account_id
 
     def is_bill_submittable(self) -> bool:
         """是否可以提交账单"""
-        return self.status in (
+        return PartnerRequestStatus(self.status) in (
             PartnerRequestStatus.READY,
             PartnerRequestStatus.PERFORMING,
             PartnerRequestStatus.SETTLING,
         )
 
     def is_deletable(self) -> bool:
-        """是否可以删除
-
-        草稿状态可以删除
-        """
-        return self.status == PartnerRequestStatus.DRAFT
+        """是否可以删除"""
+        return PartnerRequestStatus(self.status) == PartnerRequestStatus.DRAFT
 
     def is_mergeable(self) -> bool:
         """是否可以被合并"""
-        return self.status == PartnerRequestStatus.JOINABLE
+        return PartnerRequestStatus(self.status) == PartnerRequestStatus.JOINABLE
 
 
-class PRTypedContent(SoCommonTC, proxy=True):
+class PRTypedContent(BaseModel):
     """搭子请求类型特有内容"""
+    id: PartnerRequestRef
 
-    _id: FieldT[PartnerRequestRef] = field(is_key=True)
 
-
-class PartnerRequestEditable(
-    EditableScheme,
-    PartnerRequest,
-    default_exclude_dump_flags={
-        "managed",
-    },
-): ...
+class PartnerRequestEditable(BaseModel):
+    """Editable fields for PartnerRequest."""
+    title: Opt[str] = None
+    introduction: Opt[str] = None

@@ -7,6 +7,8 @@ __all__ = [
     "BaseProfileEditable",
     "AccountProfileSimple",
     "AccountConfig",
+    "Gender",
+    "MBTI",
     "V2WXMPLoginBody",
     "PIIType",
     "V1SetPIIVerProvider",
@@ -23,6 +25,8 @@ from .account import (
     BaseProfileEditable,
     AccountProfileSimple,
     AccountConfig,
+    Gender,
+    MBTI,
 )
 from .manager import V2WXMPLoginBody, PIIType, V1SetPIIVerProvider, V1SetPIIBody
 from .my_list import MyLists

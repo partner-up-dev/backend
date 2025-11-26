@@ -5,33 +5,43 @@ __all__ = [
     "Location",
     "RouteItemDatetime",
     "RouteItem",
-    "Route",
 ]
 
 import typing
-from typing import Optional as Opt, Annotated as Anno, Literal as Lit
+from typing import Optional as Opt
 import datetime as datetime_
-from blue_firmament.scheme.field import Field
-from blue_firmament.scheme import BaseScheme, BusinessScheme, field, ListConverter
-from dal import SupabaseAnonPostgrest
+import sqlmodel
+import sqlalchemy
+from pydantic import BaseModel
 
 
 LocationRef: typing.TypeAlias = str
 
 
-class Location(
-    BusinessScheme[LocationRef],
-    key_type=LocationRef,
-    dal=SupabaseAnonPostgrest,
-    dal_path=("location", "public"),
-):
-    friendly_address: str  # max 16
-    address: typing.List[str]
-    lat: float
-    lng: float
+class Location(sqlmodel.SQLModel, table=True):
+    """Location database model."""
+    __tablename__ = "location"  # type: ignore
+    __table_args__ = {"schema": "public"}
+
+    id: LocationRef = sqlmodel.Field(
+        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+    )
+    friendly_address: str = sqlmodel.Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.String(64), nullable=False)
+    )  # max 16
+    address: str = sqlmodel.Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+    )  # JSON list[str]
+    lat: float = sqlmodel.Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False)
+    )
+    lng: float = sqlmodel.Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False)
+    )
 
 
-class RouteItemDatetime(BaseScheme, proxy=False):
+class RouteItemDatetime(BaseModel):
+    """Route item datetime model."""
     datetime: Opt[datetime_.datetime] = None
     time: Opt[datetime_.time] = None
     bring_ahead: Opt[int] = None
@@ -48,16 +58,7 @@ class RouteItemDatetime(BaseScheme, proxy=False):
     """
 
 
-class RouteItem(BaseScheme, proxy=False):
+class RouteItem(BaseModel):
+    """Route item model."""
     datetime: RouteItemDatetime
     location: LocationRef
-
-
-type RouteT = list[RouteItem]
-
-
-class Route(Field[RouteT]):
-    def __init__(self, **kwargs):
-        kwargs["default_factory"] = list
-        kwargs["converter"] = ListConverter(RouteItem, min_len=2, max_len=10)
-        super().__init__(**kwargs)

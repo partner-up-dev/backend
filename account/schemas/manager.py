@@ -1,9 +1,11 @@
-import typing
+"""Manager-related schemas for account."""
+
 import enum
-from blue_firmament.scheme import BaseScheme
+from pydantic import BaseModel
 
 
-class V2WXMPLoginBody(BaseScheme, proxy=False):
+class V2WXMPLoginBody(BaseModel):
+    """WXMP login request body."""
     code: str
     """授权码"""
 
@@ -22,7 +24,8 @@ class V1SetPIIVerProvider(enum.Enum):
     """微信小程序"""
 
 
-class V1SetPIIBody(BaseScheme, proxy=False):
+class V1SetPIIBody(BaseModel):
+    """PII setting request body."""
     code: str
     """验证码
     

@@ -1,9 +1,9 @@
 """微信公众平台鉴权模块数据模型"""
 
 import enum
-from dal import SupabaseAnonPostgrest
-from ..schemas.account import AccountRef
-from blue_firmament.scheme import BaseScheme, FieldT, field
+import sqlmodel
+from typing import Optional as Opt
+from .account import AccountRef
 
 
 class WXMPClientType(enum.Enum):
@@ -15,30 +15,34 @@ class WXMPClientType(enum.Enum):
     """服务号"""
 
 
-class WXMPAccount(BaseScheme, dal=SupabaseAnonPostgrest, dal_path=("wxmp", "account")):
+class WXMPAccount(sqlmodel.SQLModel, table=True):
     """微信公众平台帐号"""
+    __tablename__ = "wxmp"  # type: ignore
+    __table_args__ = {"schema": "account"}
 
-    id: FieldT[AccountRef] = field(is_key=True)
-    weixin_mp_openid: FieldT[str | None] = field(default=None)
+    id: AccountRef = sqlmodel.Field(
+        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+    )
+    weixin_mp_openid: Opt[str] = sqlmodel.Field(default=None)
     """微信小程序OPENID"""
-    weixin_sa_openid: FieldT[str | None] = field(default=None)
+    weixin_sa_openid: Opt[str] = sqlmodel.Field(default=None)
     """微信服务号OPENID"""
-    weixin_unionid: FieldT[str | None] = field(default=None)
+    weixin_unionid: Opt[str] = sqlmodel.Field(default=None)
     """微信开放平台UNIONID"""
 
     @classmethod
-    def get_openid_field(cls, client_type: WXMPClientType) -> FieldT:
-        """获取存储该客户端类型对应OpenID的字段
+    def get_openid_field_name(cls, client_type: WXMPClientType) -> str:
+        """获取存储该客户端类型对应OpenID的字段名
 
         :param client_type: 客户端类型
         """
         if client_type == WXMPClientType.MINIPROGRAM:
-            return cls.weixin_mp_openid
+            return "weixin_mp_openid"
         elif client_type == WXMPClientType.SERVICE_ACCOUNT:
-            return cls.weixin_sa_openid
+            return "weixin_sa_openid"
         else:
             raise ValueError(f"Unsupported OAuth provider {client_type}")
 
     def set_openid(self, client_type: WXMPClientType, openid: str) -> None:
-        openid_field = self.get_openid_field(client_type)
-        self[openid_field] = openid
+        field_name = self.get_openid_field_name(client_type)
+        setattr(self, field_name, openid)

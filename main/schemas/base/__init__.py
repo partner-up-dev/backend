@@ -1,15 +1,9 @@
-""" """
+""" Base schemas for main app """
 
 import enum
 import typing
-from typing import Optional as Opt, Annotated as Anno, Literal as Lit
-from blue_firmament.scheme import BaseScheme, field, FieldT
-from blue_firmament.scheme.field import Field
-from blue_firmament.scheme.converter import (
-    FloatConverter,
-    IntConverter,
-    OptionalConveter,
-)
+from typing import Optional as Opt
+from pydantic import BaseModel
 
 
 class Currency(enum.Enum):
@@ -40,28 +34,11 @@ class NavigationMethod(enum.Enum):
     RELAUNCH = "re_launch"
 
 
-class Navigation(BaseScheme, proxy=False):
+class Navigation(BaseModel):
+    """Navigation model."""
     path: str
     params: dict[str, typing.Any]
     method: NavigationMethod
-
-
-class OptAbsAmount(Field[Opt[int]]):
-    """可选金额"""
-
-    def __init__(self, **kwargs):
-        kwargs["default"] = None
-        kwargs["converter"] = OptionalConveter(tp_converter=IntConverter(ge=1))
-        super().__init__(**kwargs)
-
-
-class OptRelAmount(Field[Opt[float]]):
-    """可选的相对金额"""
-
-    def __init__(self, **kwargs):
-        kwargs["default"] = None
-        kwargs["converter"] = OptionalConveter(tp_converter=FloatConverter(gt=0, le=1))
-        super().__init__(**kwargs)
 
 
 class Gender(enum.Enum):
