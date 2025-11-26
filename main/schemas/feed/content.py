@@ -3,16 +3,14 @@
 
 import enum
 import typing
-from typing import Optional as Opt, Annotated as Anno, Literal as Lit
 from blue_firmament.scheme import (
-    BaseScheme, BusinessScheme,
-    field, FieldT
+    BusinessScheme
 )
 from blue_firmament.scheme.field import Field
 from ..partner_request import PartnerRequestRef
 
 if typing.TYPE_CHECKING:
-    from .list import FeedListRef
+    pass
 
 
 T = typing.TypeVar('T')

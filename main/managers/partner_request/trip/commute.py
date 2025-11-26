@@ -3,9 +3,7 @@
 __module_name__ = "CommutePartnerRequestManager"
 
 # typing
-import typing
 from ..base import TypedPRManager, BasePRManager
-from blue_firmament.exceptions import DuplicateOrConflict, InternalError
 from blue_firmament.scheme import merge_scheme
 from communication.managers.message.main import BaseMessageManager
 from .base import TripPRManager

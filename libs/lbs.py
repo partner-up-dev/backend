@@ -1,6 +1,6 @@
 import aiohttp
 import typing
-from typing import Annotated as Anno, Optional as Opt, Literal as Lit
+from typing import Literal as Lit
 from blue_firmament.log import get_logger
 from settings.lbs import get_setting
 

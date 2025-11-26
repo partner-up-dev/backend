@@ -18,7 +18,7 @@ logger = logging.getChild("ContractManager")
 
 # schemas
 from app.schemas.contract.display import ContractSimpleDisplay
-from app.schemas.contract import Contract, ContractMetadata, ContractContent, ContractStatus
+from app.schemas.contract import Contract, ContractContent, ContractStatus
 from app.schemas.contract.clause import Clause
 from app.schemas.partner_request import PartnerRequestType, PartnerRequestContentId
 

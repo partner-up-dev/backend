@@ -24,7 +24,6 @@ from app.libs.logs import top_logger as logging
 logger = logging.getChild('PDF')
 
 import io
-from datetime import datetime
 
 # cryptography
 from asn1crypto import x509, keys

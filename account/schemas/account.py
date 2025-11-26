@@ -13,7 +13,6 @@ __all__ = [
 
 import typing
 import enum
-import sqlalchemy
 import sqlmodel
 from typing import Optional as Opt
 from pydantic import BaseModel
@@ -134,7 +133,9 @@ class AccountConfig(sqlmodel.SQLModel, table=True):
         if self.public_profile_fields is None:
             return base_profile
 
-        public_fields = json.loads(self.public_profile_fields) if self.public_profile_fields else []
+        public_fields = (
+            json.loads(self.public_profile_fields) if self.public_profile_fields else []
+        )
         filtered = BaseProfile(
             id=base_profile.id,
             nickname=base_profile.nickname,

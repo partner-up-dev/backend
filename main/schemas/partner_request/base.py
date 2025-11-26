@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from account.schemas import AccountRef
 
 if typing.TYPE_CHECKING:
-    from communication.schemas.chat import ChatRef
+    pass
 
 
 PartnerRequestRef: typing.TypeAlias = int

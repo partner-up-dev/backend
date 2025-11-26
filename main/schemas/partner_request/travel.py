@@ -1,15 +1,13 @@
-"""旅游搭子请求数据模型
-"""
+"""旅游搭子请求数据模型"""
 
-import typing
-from blue_firmament.scheme import field, FieldT
-from . import PartnerRequestL2Type, PRTypedContent, PartnerRequest
+from pydantic import BaseModel
 
 
-class TravelPRContent(PRTypedContent):
+class TravelPRContent(BaseModel):
+    """旅游搭子请求特有内容"""
+    id: int
 
-    pass
 
-class TravelPartnerRequest(PartnerRequest, TravelPRContent):
-
-    type: FieldT[PartnerRequestL2Type] = field(default=PartnerRequestL2Type.TRAVEL)
+class TravelPartnerRequest(TravelPRContent):
+    """旅游搭子请求"""
+    type: str = "travel"

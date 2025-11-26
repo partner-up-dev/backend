@@ -1,7 +1,6 @@
 """My List Manager."""
 
 import json
-from typing import Optional as Opt
 import structlog
 from fastapi import HTTPException
 import sqlmodel

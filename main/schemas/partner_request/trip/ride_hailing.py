@@ -1,53 +1,32 @@
 """网约车搭子请求 核心数据模型"""
 
 import typing
-from typing import Optional as Opt
-from blue_firmament.scheme import BaseScheme, field, FieldT, EditableScheme
-from ..trip.base import TripPRContent, TripPartnerRequest
-from .. import PartnerRequestL2Type, PartnerRequestEditable
-from dal import SupabaseAnonPostgrest
+from typing import Optional as Opt, List
+from pydantic import BaseModel
+from .base import TripPRContent
 
 
 RideHailingOrderRef = typing.NewType("RideHailingOrderRef", int)
 RideTypeRef = typing.NewType("RideTypeRef", str)
 
 
-class RideHailingPreference(BaseScheme, proxy=False):
+class RideHailingPreference(BaseModel):
     """网约车偏好"""
-
-    ride_types: FieldT[typing.List[RideTypeRef]] = field(default_factory=list)
-    """车型偏好
-    """
+    ride_types: List[RideTypeRef] = []
+    """车型偏好"""
 
 
-class RideHailingPRContent(
-    TripPRContent, dal=SupabaseAnonPostgrest, dal_path=("ride_hailing", "partner_request")
-):
+class RideHailingPRContent(TripPRContent):
     """网约车搭子请求特有内容"""
-
-    ride_hailing_preference: FieldT[Opt[RideHailingPreference]] = field(
-        default_factory=RideHailingPreference
-    )
+    ride_hailing_preference: Opt[RideHailingPreference] = None
     ride_hailing_order: Opt[RideHailingOrderRef] = None
 
 
-class RideHailingPartnerRequest(
-    RideHailingPRContent,
-    TripPartnerRequest,
-):
+class RideHailingPartnerRequest(RideHailingPRContent):
     """网约车搭子请求"""
-
-    # TODO 覆盖原有字段实例，需要重新声明 dump_flags，建议添加可继承版的实例声明
-    type: FieldT[PartnerRequestL2Type] = field(
-        default=PartnerRequestL2Type.RIDE_HAILING,
-        dump_flags={
-            "managed",
-        },
-    )
+    type: str = "ride_hailing"
 
 
-class RideHailingPREditable(
-    PartnerRequestEditable,
-    RideHailingPartnerRequest,
-):
+class RideHailingPREditable(BaseModel):
     """网约车搭子请求可编辑内容"""
+    ride_hailing_preference: Opt[RideHailingPreference] = None

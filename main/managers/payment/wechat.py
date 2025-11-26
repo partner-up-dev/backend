@@ -15,7 +15,7 @@ import datetime
 import random
 import string
 import typing
-from typing import Optional as Opt, Annotated as Anno, Literal as Lit
+from typing import Optional as Opt, Literal as Lit
 from .base import BasePaymentManager
 from ...schemas.base import Currency
 from ...schemas.payment.wechat import (
@@ -38,7 +38,6 @@ from blue_firmament.exceptions import (
     ParamsInvalid,
     NotFound,
     ExternalError,
-    InternalError,
     # TooManyRequests
 )
 

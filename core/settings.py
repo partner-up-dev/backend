@@ -1,8 +1,6 @@
 """Application Settings - All configuration from environment variables."""
 
-import os
 from functools import lru_cache
-from typing import Optional as Opt
 from pydantic_settings import BaseSettings
 
 

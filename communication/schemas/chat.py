@@ -6,12 +6,11 @@ import typing
 import sqlalchemy
 import sqlmodel
 from typing import Optional as Opt
-from pydantic import BaseModel
 
 from account.schemas import AccountRef
 
 if typing.TYPE_CHECKING:
-    from main.schemas.partner_request import PartnerRequestRef
+    pass
 
 
 class ChatStatus(enum.Enum):

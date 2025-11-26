@@ -2,7 +2,6 @@
 
 __all__ = ["BasePRManager", "TypedPRManager"]
 
-import abc
 import asyncio
 import typing
 from typing import Optional as Opt

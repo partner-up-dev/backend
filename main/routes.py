@@ -1,20 +1,17 @@
 """Main App Routes."""
 
 import fastapi
-from typing import Annotated as Anno, Optional as Opt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException
 
-from core.auth import AuthInfo, require_auth, get_current_user
+from core.auth import AuthInfo, require_auth
 from core.engine import get_db_session
 import sqlmodel
 
 from .schemas.partner_request import (
     PartnerRequest,
     PartnerRequestRef,
-    PartnerRequestEditable,
     PartnerRequestStatus,
     PartnerRequestListType,
-    PartnerRequestL2Type,
 )
 
 router = fastapi.APIRouter()

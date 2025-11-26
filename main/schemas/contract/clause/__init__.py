@@ -52,12 +52,7 @@ class Obligation(BaseSchema):
     """
 
     content_type: Annotated[ObligationContentType, enum_serializer]
-    content: Union[
-        str, # plain
-        dict, # direct
-        RowReference, # row_reference
-        Getter # getter
-    ]
+    content: str | dict | RowReference | Getter
 
 
 ''' Default '''

@@ -7,7 +7,6 @@ __all__ = [
 ]
 
 import datetime
-import typing
 import enum
 import sqlalchemy
 import sqlmodel

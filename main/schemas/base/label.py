@@ -6,7 +6,7 @@
 # references:
 #   https://app.apifox.com/link/project/4406548/apis/schema-98704908
 
-from typing import Any, List
+from typing import List
 from pydantic import BaseModel
 
 

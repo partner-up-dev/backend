@@ -2,7 +2,6 @@
 
 __all__ = ["SupabaseAuth", "get_account_profile", "get_account_profile_simple"]
 
-import typing
 import structlog
 from typing import Optional as Opt
 from gotrue import AsyncGoTrueClient

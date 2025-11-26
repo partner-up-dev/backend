@@ -11,7 +11,7 @@ import sqlmodel
 from core.settings import get_settings
 from libs.weixin import WXMP_MP_API, WXMP_SA_API
 from .account import SupabaseAuth
-from ..schemas import AccountRef, BaseProfile
+from ..schemas import BaseProfile
 from ..schemas.manager import V2WXMPLoginBody
 from ..schemas.wxmp import WXMPAccount, WXMPClientType
 

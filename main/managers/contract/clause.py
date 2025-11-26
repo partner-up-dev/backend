@@ -17,7 +17,7 @@ from app.libs.logs import top_logger as logging
 logger = logging.getChild("ClauseManager")
 
 # schemas
-from app.schemas.contract.clause import Clause, ClauseMetadata, ClauseContent
+from app.schemas.contract.clause import Clause
 
 # db
 from app.libs.postgresql import supabase_serv_db

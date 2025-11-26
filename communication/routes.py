@@ -1,14 +1,14 @@
 """Communication App Routes."""
 
 import fastapi
-from typing import Annotated as Anno, Optional as Opt
-from fastapi import Depends, HTTPException, Request, status
+from typing import Optional as Opt
+from fastapi import Depends, HTTPException
 
-from core.auth import AuthInfo, require_auth, get_current_user
+from core.auth import AuthInfo, require_auth
 from core.engine import get_db_session
 import sqlmodel
 
-from .schemas.chat import Chat, ChatRef, ChatType, ChatStatus
+from .schemas.chat import Chat, ChatRef, ChatType
 from .schemas.message import Message, MessageRef, MessageType
 
 router = fastapi.APIRouter()

@@ -8,7 +8,7 @@ from typing import Optional as Opt, NewType
 from account.schemas import AccountRef
 
 if typing.TYPE_CHECKING:
-    from .base import PartnerRequestRef
+    pass
 
 
 PartnerRoleRef = NewType("PartnerRoleRef", int)
