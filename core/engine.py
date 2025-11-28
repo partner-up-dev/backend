@@ -14,10 +14,10 @@ from core.settings import get_settings
 def get_engine():
     """Get database engine, creating lazily."""
     settings = get_settings()
-    if not settings.database_url:
-        raise RuntimeError("DATABASE_URL environment variable is not set")
+    if not settings.database.url:
+        raise RuntimeError("DATABASE__URL environment variable is not set")
     return sqlmodel.create_engine(
-        url=settings.database_url,
+        url=settings.database.url,
         pool_pre_ping=True,
     )
 

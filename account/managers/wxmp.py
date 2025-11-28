@@ -97,8 +97,8 @@ async def wxmp_login(
     }
     access_token = jwt.encode(
         payload,
-        key=settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithms[0],
+        key=settings.auth.jwt_secret_key,
+        algorithm=settings.auth.jwt_algorithms[0],
     )
 
     profile = db.get(BaseProfile, wxmp_account.id)

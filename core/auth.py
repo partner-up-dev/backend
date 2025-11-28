@@ -39,9 +39,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 if scheme.lower() == "bearer":
                     payload = jwt.decode(
                         token,
-                        settings.jwt_secret_key,
-                        algorithms=settings.jwt_algorithms,
-                        audience=settings.jwt_allowed_audiences,
+                        settings.auth.jwt_secret_key,
+                        algorithms=settings.auth.jwt_algorithms,
+                        audience=settings.auth.jwt_allowed_audiences,
                     )
                     auth_info = AuthInfo(
                         user_id=payload.get("sub"),
