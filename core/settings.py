@@ -3,11 +3,20 @@
 Settings are organized by domain using nested models.
 Environment variables use nested delimiter '__' to map to nested fields.
 Example: DATABASE__URL maps to settings.database.url
+
+The default env file location is /run/secrets/.env for production deployments.
+This can be overridden by setting the ENV_FILE environment variable.
+For development, create a .env file in the project root and set ENV_FILE=.env
 """
 
+import os
 from functools import lru_cache
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Default env file path - can be overridden by ENV_FILE environment variable
+_ENV_FILE = os.getenv("ENV_FILE", "/run/secrets/.env")
 
 
 class DatabaseSettings(BaseModel):
@@ -45,8 +54,12 @@ class SupabaseSettings(BaseModel):
 
 
 class WeixinSettings(BaseModel):
-    """WeChat configuration."""
-    partner_up_wxmp_appid: str = "wx7674f72ff1eb49e6"
+    """WeChat configuration.
+
+    The partner_up_wxmp_appid has a default value for backwards compatibility,
+    but should be set via environment variables for different environments.
+    """
+    partner_up_wxmp_appid: str = ""
     partner_up_wxmp_secret: str = ""
     partner_up_wxsa_appid: str = ""
     partner_up_wxsa_secret: str = ""
@@ -77,10 +90,13 @@ class Settings(BaseSettings):
         DATABASE__URL -> settings.database.url
         REDIS__HOST -> settings.redis.host
         AUTH__JWT_SECRET_KEY -> settings.auth.jwt_secret_key
+
+    The env file location defaults to /run/secrets/.env but can be overridden
+    by setting the ENV_FILE environment variable.
     """
 
     model_config = SettingsConfigDict(
-        env_file="/run/secrets/.env",
+        env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
         env_nested_delimiter="__",
