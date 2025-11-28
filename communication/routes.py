@@ -1,4 +1,9 @@
-"""Communication App Routes."""
+"""Communication App Routes.
+
+Business logic endpoints for chats and messages.
+Simple CRUD operations (get, create, put, delete, upsert) are handled by direct
+database access from the client.
+"""
 
 import fastapi
 from typing import Optional as Opt
@@ -14,18 +19,6 @@ from .schemas.message import Message, MessageRef, MessageType
 router = fastapi.APIRouter()
 
 
-@router.get("/chat/{chat_id}")
-def get_chat(
-    chat_id: ChatRef,
-    db: sqlmodel.Session = Depends(get_db_session),
-) -> Chat:
-    """Get a chat by ID."""
-    chat = db.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    return chat
-
-
 @router.get("/chat/{chat_id}/messages")
 def get_chat_messages(
     chat_id: ChatRef,
@@ -35,7 +28,11 @@ def get_chat_messages(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> list[Message]:
-    """Get messages from a chat."""
+    """Get messages from a chat.
+
+    Supports pagination and ordering.
+    Requires authentication.
+    """
     chat = db.get(Chat, chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -57,7 +54,10 @@ def get_my_chats(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> list[ChatRef]:
-    """Get chats for current user."""
+    """Get chats for current user.
+
+    Optionally filter by chat type.
+    """
     statement = sqlmodel.select(Chat.id).where(Chat.created_by == auth.user_id)
     if chat_type:
         statement = statement.where(Chat.type == chat_type.value)
@@ -72,7 +72,10 @@ def send_plain_message(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> Message:
-    """Send a plain text message."""
+    """Send a plain text message to a chat.
+
+    Creates a new message with PLAIN type.
+    """
     chat = db.get(Chat, to_chat)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -95,7 +98,10 @@ def mark_message_viewed(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> Message:
-    """Mark a message as viewed."""
+    """Mark a message as viewed by the current user.
+
+    Adds the user to the viewed list if not already present.
+    """
     message = db.get(Message, message_id)
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")

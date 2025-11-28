@@ -1,4 +1,9 @@
-"""Account App Routes."""
+"""Account App Routes.
+
+Business logic endpoints for account management.
+Simple CRUD operations (get, create, put, delete, upsert) are handled by direct
+database access from the client.
+"""
 
 import fastapi
 from fastapi import Depends, HTTPException
@@ -8,7 +13,6 @@ from core.engine import get_db_session
 import sqlmodel
 
 from .schemas import (
-    AccountRef,
     BaseProfile,
     BaseProfileEditable,
     AccountConfig,
@@ -16,18 +20,6 @@ from .schemas import (
 )
 
 router = fastapi.APIRouter()
-
-
-@router.get("/profile/{account_id}")
-def get_profile(
-    account_id: AccountRef,
-    db: sqlmodel.Session = Depends(get_db_session),
-) -> BaseProfile:
-    """Get account profile by ID."""
-    profile = db.get(BaseProfile, account_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return profile
 
 
 @router.get("/profile/me")
@@ -48,7 +40,10 @@ def update_my_profile(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> BaseProfile:
-    """Update current user's profile."""
+    """Update current user's profile.
+
+    Only updates fields that are provided (partial update).
+    """
     profile = db.get(BaseProfile, auth.user_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
