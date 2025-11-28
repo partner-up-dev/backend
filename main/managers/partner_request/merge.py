@@ -1,9 +1,6 @@
 """搭子请求合并请求的管理器"""
 
 import asyncio
-import typing
-from typing import Annotated as Anno
-from typing import Literal as Lit
 from typing import Optional as Opt
 from blue_firmament import listen_to
 from blue_firmament.manager import CommonManager, PresetHandlerConfig

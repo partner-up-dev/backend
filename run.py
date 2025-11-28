@@ -1,3 +1,62 @@
+"""Run API Service."""
+
+import contextlib
+import fastapi
+import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
+
+from core.settings import get_settings
+from core.auth import AuthMiddleware
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: fastapi.FastAPI):
+    """Application lifespan handler."""
+    yield
+
+
+def create_app() -> fastapi.FastAPI:
+    """Create FastAPI application."""
+    settings = get_settings()
+
+    app = fastapi.FastAPI(
+        title="PartnerUp Backend",
+        version="0.4.0",
+        lifespan=lifespan,
+    )
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Add auth middleware
+    app.add_middleware(AuthMiddleware)
+
+    # Heartbeat endpoint
+    @app.get("/heartbeat")
+    def heartbeat():
+        return {"status": "ok"}
+
+    # Import and include routers
+    from main.routes import router as main_router
+    from communication.routes import router as communication_router
+    from account.routes import router as account_router
+
+    app.include_router(main_router, prefix="/main", tags=["main"])
+    app.include_router(communication_router, prefix="/communication", tags=["communication"])
+    app.include_router(account_router, prefix="/account", tags=["account"])
+
+    return app
+
+
+app = create_app()
+
+
 if __name__ == "__main__":
     print(R"""
 
@@ -10,7 +69,7 @@ if __name__ == "__main__":
 
                     #######################################
                             Anana-Backend-Main
-                        --Powered by BlueFirmament--
+                        --Powered by FastAPI--
         
                     2025(c) all copyrights reserved
                     #######################################
@@ -19,70 +78,9 @@ if __name__ == "__main__":
     [LOG OUTPUT]:
     """)
 
-    # Load environment variables first
-    import env_loader
-
-    import settings.auth
-    from blue_firmament.session.common import CommonSession
-
-    CommonSession.ACCESS_TOKEN_PAYLOAD_ID_CLAIM = "session_id"
-
-    from blue_firmament.log import get_logger
-
-    LOGGER = get_logger(__name__)
-
-    from blue_firmament.core.app import BlueFirmamentApp
-
-    app = BlueFirmamentApp(name="PartnerUpMain")
-
-    # [transport]
-    from blue_firmament.transport.http import HTTPTransporter
-    from blue_firmament.transport.pubsub import PubSubTransporter
-
-    from settings.transport import get_setting as get_transport_setting
-
-    app.add_transporter(
-        HTTPTransporter(
-            app,
-            get_transport_setting().http_host,
-            get_transport_setting().http_port,
-        )
+    settings = get_settings()
+    uvicorn.run(
+        app,
+        host=settings.http_host,
+        port=settings.http_port,
     )
-
-    from dal import DefaultRedis
-
-    app.add_transporter(PubSubTransporter(app, DefaultRedis(), "events", name="event"))
-
-    from blue_firmament import event
-
-    event.EVENT_BROKER = DefaultRedis(channel_name="events")
-
-    # [managers]
-    from communication.managers.chat import ChatManager
-    from communication.managers.message import BaseMessageManager, PlainMessageManager
-    from communication.managers.message.approval import ApprovalMessageManager
-    from main.managers.partner_request import BasePRManager, PartnerManager
-    from main.managers.partner_request.application import PartnerApplicationManager
-    from main.managers.partner_request.trip.commute import CommutePRManager
-    from main.managers.partner_request.trip.ride_hailing import RideHailingPRManager
-    from main.managers.payment import wechat  # for activation
-    from main.managers.split_bill import SplitBillManager
-    from main.managers.split_bill.contribution import ContributionManager
-    from main.managers.base.route import LocationManager
-
-    app.add_managers(
-        BasePRManager,
-        PartnerManager,
-        PartnerApplicationManager,
-        RideHailingPRManager,
-        CommutePRManager,
-        ChatManager,
-        BaseMessageManager,
-        PlainMessageManager,
-        ApprovalMessageManager,
-        SplitBillManager,
-        ContributionManager,
-        LocationManager,
-    )
-
-    app.run()

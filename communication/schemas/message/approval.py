@@ -1,10 +1,10 @@
 """审批类消息的数据模型"""
 
 import typing
-from typing import Optional as Opt, Annotated as Anno
+from typing import Optional as Opt
 import enum
 import datetime
-from blue_firmament.scheme import BaseScheme, field, FieldT, scheme_validator
+from blue_firmament.scheme import BaseScheme, FieldT, scheme_validator
 from blue_firmament.scheme.enum import Status
 from blue_firmament.utils.datetime_ import get_datetimez
 from blue_firmament.exceptions import Conflict, ParamsInvalid

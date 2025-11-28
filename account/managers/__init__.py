@@ -1,12 +1,13 @@
 """帐号服务的管理器"""
 
-from .account import AccountIdentityManager, BaseProfileManager
-from .my_list import MyListManager
-from .wxmp import WXMPAccountManager
+from .account import SupabaseAuth, get_account_profile, get_account_profile_simple
+from .my_list import get_my_lists, add_to_favorited_prs, remove_from_favorited_prs
 
 __all__ = [
-    "AccountIdentityManager",
-    "BaseProfileManager",
-    "MyListManager",
-    "WXMPAccountManager",
+    "SupabaseAuth",
+    "get_account_profile",
+    "get_account_profile_simple",
+    "get_my_lists",
+    "add_to_favorited_prs",
+    "remove_from_favorited_prs",
 ]

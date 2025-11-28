@@ -10,7 +10,6 @@ from ...base.route import LocationManager
 from ..base import TypedPRManager
 from ....schemas.base.route import (
     LocationRef,
-    Route,
     RouteT,
     RouteItem,
     RouteItemDatetime,

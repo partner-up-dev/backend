@@ -1,6 +1,6 @@
 [project]
 name = "partnerup-backend"
-version = "0.3.0"
+version = "0.4.0"
 description = "PartnerUp Backend"
 authors = [
     { name = "Lanzhijiang", email = "lanzhijiang@foxmail.com" },
@@ -9,6 +9,14 @@ authors = [
 requires-python = ">=3.12,<3.13"
 readme = "README.md"
 dependencies = [
+    "fastapi>=0.115.0,<0.116.0",
+    "sqlmodel>=0.0.24,<0.0.25",
+    "sqlalchemy>=2.0.41,<3.0.0",
+    "uvicorn>=0.35.0,<0.36.0",
+    "psycopg2-binary>=2.9.10,<3.0.0",
+    "pydantic>=2.11.0,<3.0.0",
+    "pydantic-settings>=2.7.0,<3.0.0",
+    "pyjwt>=2.10.0,<3.0.0",
     "celery>=5.4.0,<6.0.0",
     "redis>=5.2.0,<6.0.0",
     "requests>=2.32.3,<3.0.0",
@@ -18,7 +26,6 @@ dependencies = [
     "structlog>=25.3.0,<26.0.0",
     "pyhanko[opentype]>=0.26.0,<0.27.0",
     "supabase-auth>=2.12.0,<3.0.0",
-    "blue-firmament>=0.2.0,<0.3.0",
     "python-dotenv>=1.2.1",
 ]
 
@@ -26,7 +33,7 @@ dependencies = [
 dev = [
     "pytest>=8.3.3,<9.0.0",
     "pytest-asyncio>=1.0.0,<2.0.0",
-    "pyrefly>=0.28.1,<0.29.0",
+    "alembic>=1.16.0,<2.0.0",
 ]
 
 [build-system]
@@ -39,4 +46,12 @@ asyncio_mode = "auto"
 [tool.pdm]
 distribution = false
 
-[tool.pyrefly]
+[tool.pdm.scripts]
+alembic-gengrade = "alembic revision --autogenerate -m {args} && alembic upgrade head"
+alembic-revision = "alembic revision -m {args}"
+alembic-autogen = "alembic revision --autogenerate -m {args}"
+alembic-upgrade = "alembic upgrade {args}"
+alembic-downgrade = "alembic downgrade {args}"
+alembic-current = "alembic current"
+alembic-history = "alembic history"
+alembic-stamp = "alembic stamp {args}"

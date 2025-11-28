@@ -3,8 +3,6 @@
 import datetime
 import enum
 import typing
-from typing import Annotated as Anno
-from typing import Literal as Lit
 from typing import Optional as Opt
 
 from blue_firmament._types import Undefined, _undefined

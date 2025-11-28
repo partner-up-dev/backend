@@ -2,7 +2,6 @@
 
 __all__ = ["PartnerManager"]
 
-import typing
 from typing import Optional as Opt
 from blue_firmament import listen_to, Method
 from blue_firmament.manager import CommonManager

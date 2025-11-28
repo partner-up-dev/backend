@@ -1,15 +1,24 @@
+"""My Lists Schema for Account."""
+
+import typing
+import sqlmodel
+from typing import Optional as Opt
 from .account import AccountRef
-from dal import SupabaseAnonPostgrest
-from main.schemas.partner_request import PartnerRequestRef
-from blue_firmament.scheme import BaseScheme, FieldT, field
 
 
-class MyLists(BaseScheme, dal=SupabaseAnonPostgrest, dal_path=("list", "account")):
+PartnerRequestRef: typing.TypeAlias = int
+
+
+class MyLists(sqlmodel.SQLModel, table=True):
     """我的列表
 
     不得不存储在账号中的列表
     """
+    __tablename__ = "list"  # type: ignore
+    __table_args__ = {"schema": "account"}
 
-    id: FieldT[AccountRef] = field(is_key=True)
-    favorited_prs: FieldT[set[PartnerRequestRef]] = field(default_factory=set)
+    id: AccountRef = sqlmodel.Field(
+        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+    )
+    favorited_prs: Opt[str] = sqlmodel.Field(default=None)  # JSON array of PartnerRequestRef
     """收藏的搭子请求"""

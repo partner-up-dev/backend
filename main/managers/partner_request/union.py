@@ -1,5 +1,4 @@
 import typing
-from typing import Optional as Opt, Annotated as Anno
 from .travel import TravelPRManager
 from .trip.commute import CommutePRManager
 from .trip.ride_hailing import RideHailingPRManager

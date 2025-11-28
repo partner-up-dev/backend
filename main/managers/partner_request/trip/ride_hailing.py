@@ -2,11 +2,9 @@
 
 __module_name__ = "RideHailingPartnerRequestManager"
 
-import typing
-from typing import Optional as Opt, Annotated as Anno, Literal as Lit
 from ..base import BasePRManager, TypedPRManager
 from blue_firmament.scheme import merge_scheme
-from blue_firmament.exceptions import DuplicateOrConflict, InternalError
+from blue_firmament.exceptions import DuplicateOrConflict
 from communication.managers.message.main import BaseMessageManager
 from .base import TripPRManager
 

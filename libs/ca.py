@@ -20,7 +20,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-from asn1crypto import keys, pem, x509 as asn1_x509
+from asn1crypto import keys, x509 as asn1_x509
 
 # utils
 from datetime import datetime, timezone, timedelta

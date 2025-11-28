@@ -8,8 +8,6 @@ __all__ = ["PAYMENT_GATEWAY", "BasePaymentManager"]
 import abc
 import datetime
 import typing
-from typing import Annotated as Anno
-from typing import Literal as Lit
 from typing import Optional as Opt
 
 from blue_firmament.manager import BaseManager

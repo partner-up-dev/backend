@@ -1,28 +1,15 @@
-"""消息模块的数据模型
-"""
+"""消息模块的数据模型"""
 
 __all__ = [
-    "Message", 
-    "MessageRef", 
+    "Message",
+    "MessageRef",
     "MessageEditable",
-    "MessageTV",
     "MessageType",
-    "PlainMessage", 
-    "PartnerApplicationMessage",
-    "SplitBillMessage",
-    "ThreadEntryMessage", 
-    "ApprovalMessage",
 ]
 
 from .main import (
-    MessageType, 
+    MessageType,
     MessageRef,
-    Message, 
-    MessageEditable, 
-    PlainMessage,
-    PartnerApplicationMessage,
-    ThreadEntryMessage, 
-    SplitBillMessage,
-    ApprovalMessage, 
-    MessageTV,
+    Message,
+    MessageEditable,
 )

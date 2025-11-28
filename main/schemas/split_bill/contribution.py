@@ -9,14 +9,11 @@ __all__ = [
 ]
 
 import typing
-from typing import Annotated as Anno
-from typing import Literal as Lit
 from typing import Optional as Opt
 
 from blue_firmament.task.context import SoCommonTC
 from blue_firmament.exceptions import (
     Conflict,
-    Forbidden,
     InvalidStatusTransition,
     ParamsInvalid,
 )
@@ -38,7 +35,7 @@ from ..base import OptAbsAmount, OptRelAmount
 from ..payment.base import PaymentPlatform
 
 if typing.TYPE_CHECKING:
-    from .main import SplitBill, SplitBillRef
+    from .main import SplitBillRef
 
 
 class ContributionStatus(Status):

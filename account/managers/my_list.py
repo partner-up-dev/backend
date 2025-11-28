@@ -1,39 +1,59 @@
-import typing
-from typing import Annotated as Anno, Literal as Lit, Optional as Opt
-from blue_firmament import listen_to
-from blue_firmament.manager import CommonManager
+"""My List Manager."""
+
+import json
+import structlog
+from fastapi import HTTPException
+import sqlmodel
 
 from ..schemas.account import AccountRef
 from ..schemas.my_list import MyLists
 
 
-class MyListManager(
-    CommonManager[MyLists, AccountRef], scheme_cls=MyLists, path_prefix="account/my_list"
-):
-    @listen_to("GET", "/{account_id}/{list_id}")
-    def get_list(
-        self,
-        account_id: AccountRef,
-        list_id: str,
-    ):
-        """获取我的列表"""
-        return self.get_a_field(field=MyLists.__fields__[list_id], _id=account_id)
+logger = structlog.get_logger(__name__)
 
-    @listen_to("POST", "/{account_id}/{list_id}")
-    def add_to_list(
-        self, account_id: AccountRef, list_id: str, body: tuple[typing.Any, ...], **kwargs
-    ):
-        """插入元素到我的列表"""
-        return self.insert_item(
-            field=MyLists.__fields__[list_id], _id=account_id, values=body, **kwargs
-        )
 
-    @listen_to("DELETE", "/{account_id}/{list_id}")
-    def delete_from_list(
-        self,
-        account_id: AccountRef,
-        list_id: str,
-        body: tuple[typing.Any, ...],
-    ):
-        """从我的列表删除元素"""
-        return self.delete_item(field=MyLists.__fields__[list_id], _id=account_id, values=body)
+def get_my_lists(db: sqlmodel.Session, account_id: AccountRef) -> MyLists:
+    """Get user's lists."""
+    lists = db.get(MyLists, account_id)
+    if not lists:
+        raise HTTPException(status_code=404, detail="Lists not found")
+    return lists
+
+
+def add_to_favorited_prs(
+    db: sqlmodel.Session, account_id: AccountRef, pr_id: int
+) -> MyLists:
+    """Add partner request to favorites."""
+    lists = db.get(MyLists, account_id)
+    if not lists:
+        lists = MyLists(id=account_id, favorited_prs="[]")
+        db.add(lists)
+
+    favorited = json.loads(lists.favorited_prs) if lists.favorited_prs else []
+    if pr_id not in favorited:
+        favorited.append(pr_id)
+        lists.favorited_prs = json.dumps(favorited)
+        db.add(lists)
+        db.commit()
+        db.refresh(lists)
+
+    return lists
+
+
+def remove_from_favorited_prs(
+    db: sqlmodel.Session, account_id: AccountRef, pr_id: int
+) -> MyLists:
+    """Remove partner request from favorites."""
+    lists = db.get(MyLists, account_id)
+    if not lists:
+        raise HTTPException(status_code=404, detail="Lists not found")
+
+    favorited = json.loads(lists.favorited_prs) if lists.favorited_prs else []
+    if pr_id in favorited:
+        favorited.remove(pr_id)
+        lists.favorited_prs = json.dumps(favorited)
+        db.add(lists)
+        db.commit()
+        db.refresh(lists)
+
+    return lists

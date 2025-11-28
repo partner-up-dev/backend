@@ -1,7 +1,5 @@
 """贡献记录管理器"""
 
-import typing
-from typing import Annotated as Anno
 from typing import Literal as Lit
 from typing import Optional as Opt
 from blue_firmament import listen_to

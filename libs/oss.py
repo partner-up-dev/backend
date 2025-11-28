@@ -12,7 +12,7 @@ todos:
 
 # typing
 from enum import Enum
-from typing import List, Optional
+from typing import List
 from supabase import Client as SupabaseSyncClient
 from storage3.utils import StorageException
 
@@ -27,7 +27,6 @@ from app.libs.supabase import supabase_serv
 from app.libs.exceptions import NotFound, ServerException
 
 # json
-import json
 
 
 ''' Schemas and Defintions '''

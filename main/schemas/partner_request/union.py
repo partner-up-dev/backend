@@ -1,7 +1,6 @@
 __all__ = ["PRTypedUnion", "PRTypedMapper"]
 
 import typing
-from typing import Optional as Opt, Annotated as Anno
 
 from .base import PartnerRequestL2Type
 
@@ -10,9 +9,9 @@ from .trip.commute import CommutePartnerRequest
 from .trip.ride_hailing import RideHailingPartnerRequest
 from .trip.base import TripPartnerRequest
 
-type PRTypedUnion = typing.Union[
-    TripPartnerRequest, RideHailingPartnerRequest, CommutePartnerRequest, TravelPartnerRequest
-]
+type PRTypedUnion = (
+    TripPartnerRequest | RideHailingPartnerRequest | CommutePartnerRequest | TravelPartnerRequest
+)
 """（二级）搭子请求数据模型集合"""
 
 
