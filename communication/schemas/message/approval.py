@@ -4,15 +4,13 @@ import typing
 from typing import Optional as Opt
 import enum
 import datetime
-from blue_firmament.scheme import BaseScheme, FieldT, scheme_validator
-from blue_firmament.scheme.enum import Status
-from blue_firmament.utils.datetime_ import get_datetimez
-from blue_firmament.exceptions import Conflict, ParamsInvalid
+from pydantic import BaseModel, model_validator
+
 from account.schemas import AccountRef
 from main.schemas.base import Navigation
 
 
-class ApprovalStatus(Status):
+class ApprovalStatus(enum.Enum):
     """审批状态"""
 
     PENDING = "pending"
@@ -22,13 +20,13 @@ class ApprovalStatus(Status):
     EXPIRED = "expired"
 
     @classmethod
-    def open_status(cls):
+    def open_status(cls) -> tuple["ApprovalStatus", ...]:
         return (cls.PENDING,)
 
-    def is_open(self):
+    def is_open(self) -> bool:
         return self in self.open_status()
 
-    def is_not_approved(self):
+    def is_not_approved(self) -> bool:
         """审批不通过"""
         return self in (
             ApprovalStatus.WITHDRAWN,
@@ -36,25 +34,9 @@ class ApprovalStatus(Status):
             ApprovalStatus.REJECTED,
         )
 
-    def is_approved(self):
+    def is_approved(self) -> bool:
         """审批通过"""
         return self == ApprovalStatus.APPROVED
-
-    def to_approved(self):
-        """转换为已通过状态"""
-        return self._to_target_status(ApprovalStatus.APPROVED, *self.open_status())
-
-    def to_rejected(self):
-        """转换为已拒绝状态"""
-        return self._to_target_status(ApprovalStatus.REJECTED, *self.open_status())
-
-    def to_withdrawn(self):
-        """转换为已撤回状态"""
-        return self._to_target_status(ApprovalStatus.WITHDRAWN, *self.open_status())
-
-    def to_expired(self):
-        """转换为已过期状态"""
-        return self._to_target_status(ApprovalStatus.EXPIRED, *self.open_status())
 
 
 class ApprovalType(enum.Enum):
@@ -75,10 +57,10 @@ VotesT = typing.Dict[AccountRef, bool | None]
 """表决记录类型"""
 
 
-class Approval(BaseScheme):
+class Approval(BaseModel):
     """审批
 
-    存储在 message.content 中
+    存储在 message.content 中（JSON序列化）
     """
 
     title: Opt[str] = None
@@ -91,7 +73,7 @@ class Approval(BaseScheme):
     """
     type: ApprovalType = ApprovalType.ONE_VETO
     status: ApprovalStatus = ApprovalStatus.PENDING
-    votes: FieldT[VotesT]
+    votes: VotesT = {}
     """表决记录
     
     存储有哪些人可以审批，以及他们的审批意见。
@@ -102,15 +84,16 @@ class Approval(BaseScheme):
     rejected_navigation: Opt[Navigation] = None
     """表决否决时导航至的前端资源"""
 
-    @scheme_validator
-    def check_expired(self) -> None:
+    @model_validator(mode="after")
+    def check_expired(self) -> "Approval":
         """检查是否过期
 
         如果过期，则修改状态为已过期
         """
         if self.status.is_open():
-            if self.closed_at and self.closed_at < get_datetimez():
+            if self.closed_at and self.closed_at < datetime.datetime.now(datetime.timezone.utc):
                 self.status = ApprovalStatus.EXPIRED
+        return self
 
     def vote(
         self,
@@ -132,14 +115,14 @@ class Approval(BaseScheme):
         """
         if self.status.is_open():
             if approver not in self.votes:
-                raise ParamsInvalid("not an approver of this approval", approver=approver)
+                raise ValueError(f"not an approver of this approval: {approver}")
             if self.votes[approver] is None:
                 self.votes[approver] = approve
                 self._check_votes()
             else:
-                raise Conflict("already approved", approver=approver)
+                raise ValueError(f"already approved: {approver}")
         else:
-            raise ParamsInvalid("approval is not open")
+            raise ValueError("approval is not open")
 
     def _check_votes(self) -> None:
         """检查审批记录，判断是通过、否决还是继续"""
@@ -154,7 +137,7 @@ class Approval(BaseScheme):
             elif len(tuple(v for v in self.votes.values() if v is False)) >= len(self.votes) / 2:
                 self.status = ApprovalStatus.REJECTED
         else:
-            raise ParamsInvalid("invalid approval type")
+            raise ValueError("invalid approval type")
 
     @classmethod
     def get_votes_from_account_ids(cls, account_ids: typing.Iterable[AccountRef]) -> VotesT:
