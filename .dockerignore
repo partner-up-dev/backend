@@ -1,0 +1,73 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+env
+ENV
+.env
+.env.*
+!.env.example
+
+# PDM
+.pdm.toml
+.pdm-python
+pdm.lock
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+
+# Build
+build
+dist
+*.egg-info
+
+# Logs
+logs
+*.log
+
+# Documentation
+docs
+
+# CI/CD
+.github
+
+# Kubernetes
+k8s
+
+# Development
+*.md
+!README.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Migrations (include these, but exclude cache)
+migrations/__pycache__
+
+# Tests (optional - uncomment to include tests in image)
+tests
+
+# Temporary files
+*.tmp
+*.temp
+.cache
