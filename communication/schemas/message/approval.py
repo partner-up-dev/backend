@@ -4,7 +4,7 @@ import typing
 from typing import Optional as Opt
 import enum
 import datetime
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from account.schemas import AccountRef
 from main.schemas.base import Navigation
@@ -73,7 +73,7 @@ class Approval(BaseModel):
     """
     type: ApprovalType = ApprovalType.ONE_VETO
     status: ApprovalStatus = ApprovalStatus.PENDING
-    votes: VotesT = {}
+    votes: VotesT = Field(default_factory=dict)
     """表决记录
     
     存储有哪些人可以审批，以及他们的审批意见。
