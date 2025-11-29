@@ -1,4 +1,9 @@
-"""Main App Routes."""
+"""Main App Routes.
+
+Business logic endpoints for partner requests.
+Simple CRUD operations (get, create, put, delete, upsert) are handled by direct
+database access from the client.
+"""
 
 import fastapi
 from fastapi import Depends, HTTPException
@@ -17,25 +22,16 @@ from .schemas.partner_request import (
 router = fastapi.APIRouter()
 
 
-@router.get("/partner_request/{pr_id}")
-def get_partner_request(
-    pr_id: PartnerRequestRef,
-    db: sqlmodel.Session = Depends(get_db_session),
-) -> PartnerRequest:
-    """Get a partner request by ID."""
-    pr = db.get(PartnerRequest, pr_id)
-    if not pr:
-        raise HTTPException(status_code=404, detail="Partner request not found")
-    return pr
-
-
 @router.get("/partner_request/list/{list_type}")
 def get_partner_request_list(
     list_type: PartnerRequestListType,
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> list[PartnerRequestRef]:
-    """Get a list of partner requests."""
+    """Get a list of partner requests.
+
+    Filters partner requests by list type for the authenticated user.
+    """
     result: list[PartnerRequestRef] = []
     account_id = auth.user_id
 
@@ -72,7 +68,11 @@ def publish_partner_request(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> PartnerRequest:
-    """Publish a partner request."""
+    """Publish a partner request.
+
+    Changes status from DRAFT to JOINABLE.
+    Only the admin (creator) can publish.
+    """
     pr = db.get(PartnerRequest, pr_id)
     if not pr:
         raise HTTPException(status_code=404, detail="Partner request not found")
@@ -96,7 +96,12 @@ def cancel_partner_request(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> PartnerRequest:
-    """Cancel a partner request."""
+    """Cancel a partner request.
+
+    Changes status to CANCELLED.
+    Only the admin (creator) can cancel.
+    Can only cancel if status is JOINABLE or READY.
+    """
     pr = db.get(PartnerRequest, pr_id)
     if not pr:
         raise HTTPException(status_code=404, detail="Partner request not found")
@@ -120,7 +125,11 @@ def next_status(
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> PartnerRequest:
-    """Move to next status."""
+    """Move partner request to next status.
+
+    Status progression: DRAFT -> JOINABLE -> READY -> PERFORMING -> SETTLING -> CLOSED
+    Only the admin (creator) can change status.
+    """
     pr = db.get(PartnerRequest, pr_id)
     if not pr:
         raise HTTPException(status_code=404, detail="Partner request not found")

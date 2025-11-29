@@ -1,207 +1,210 @@
-"""聊天管理器"""
+"""聊天管理器
 
+Business logic for chat operations using SQLModel and FastAPI patterns.
+"""
+
+__all__ = ["ChatManager"]
+
+import json
 import typing
-from typing import Annotated as Anno, Literal as Lit, Optional as Opt
+from typing import Optional as Opt
 
-from dal import DefaultRedis
-from blue_firmament import Method, listen_to
-from blue_firmament.exceptions import Forbidden, NotFound, ParamsInvalid, Conflict
-from blue_firmament.log import get_logger
-from blue_firmament.manager import CommonManager, PresetHandlerConfig
-from blue_firmament.scheme.converter import IntConverter
-from blue_firmament.task import TaskStatus
-from blue_firmament.task.result import StreamingBody, PlainTextBody
+import sqlmodel
+
+from core.engine import SessionLocal
 from account.schemas import AccountRef
-from ..schemas.chat import Chat, ChatRef, ChatType
+from ..schemas.chat import Chat, ChatRef, ChatType, ChatStatus
 from ..schemas.message import Message
-from main.schemas.partner_request import PartnerRequest
 
 if typing.TYPE_CHECKING:
+    from main.schemas.partner_request import PartnerRequest
     from main.schemas.partner_request.application import PartnerApplication
 
-LOGGER = get_logger(__name__)
 
+class ChatManager:
+    """Chat business logic manager.
 
-class ChatManager(
-    CommonManager[Chat, ChatRef],
-    scheme_cls=Chat,
-    manager_name="chat",
-    path_prefix="chat",
-    preset_handler_config=PresetHandlerConfig(get=True),
-):
-    async def _must_be_member(
-        self, chat_id: Opt[ChatRef] = None, account_id: Opt[AccountRef] = None
-    ) -> None:
-        """必须为聊天成员
+    Provides methods for chat operations without BlueFirmament dependencies.
+    Uses SQLModel sessions directly.
+    """
+
+    @classmethod
+    def get(cls, chat_id: ChatRef) -> Opt[Chat]:
+        """Get a chat by ID."""
+        with SessionLocal() as db:
+            return db.get(Chat, chat_id)
+
+    @classmethod
+    def get_members(cls, chat_id: ChatRef) -> set[AccountRef]:
+        """获取聊天成员列表
 
         :param chat_id: 聊天 ID
-        :raise Forbidden: 如果不是成员
+        :return: 成员 ID 集合
         """
-        account_id = account_id or AccountRef(self._operator.id)
-        chat = await self._get_scheme(_id=chat_id)
-        if account_id not in (await chat.get_members()):
-            raise Forbidden("must be a member of the chat")
+        with SessionLocal() as db:
+            chat = db.get(Chat, chat_id)
+            if not chat:
+                return set()
+            if chat.members is None:
+                return set()
+            members_list = json.loads(chat.members)
+            return set(members_list)
 
-    @listen_to(Method.GET, "/{chat_id}/messages")
-    async def get_history(
-        self,
+    @classmethod
+    def is_member(cls, chat_id: ChatRef, account_id: AccountRef) -> bool:
+        """检查用户是否为聊天成员
+
+        :param chat_id: 聊天 ID
+        :param account_id: 账号 ID
+        :return: 是否为成员
+        """
+        members = cls.get_members(chat_id)
+        return account_id in members
+
+    @classmethod
+    def get_chat_messages(
+        cls,
         chat_id: ChatRef,
-        start: Anno[int, IntConverter(ge=0)] = 0,
-        offset: Anno[int, IntConverter(ge=1, le=12)] = 6,
+        start: int = 0,
+        offset: int = 6,
         desc: bool = True,
-    ) -> typing.Tuple[Message, ...]:
+    ) -> list[Message]:
         """获取聊天历史消息
 
+        :param chat_id: 聊天 ID
+        :param start: 起始位置
+        :param offset: 获取数量
         :param desc: 是否降序排列
-
-        条件：
-        - 必须是聊天的成员
+        :return: 消息列表
         """
-        await self._must_be_member(chat_id=chat_id)
-        from .message import BaseMessageManager
+        with SessionLocal() as db:
+            statement = sqlmodel.select(Message).where(Message.chat == chat_id)
+            if desc:
+                statement = statement.order_by(Message.id.desc())
+            else:
+                statement = statement.order_by(Message.id)
+            statement = statement.offset(start).limit(offset)
+            messages = db.exec(statement).all()
+            return list(messages)
 
-        return await BaseMessageManager(self).get_chat_messages(
-            chat_id=chat_id, start=start, offset=offset, desc=desc
-        )
+    @classmethod
+    def get_user_chats(
+        cls,
+        user_id: AccountRef,
+        chat_type: Opt[ChatType] = None,
+    ) -> list[ChatRef]:
+        """获取用户的聊天列表
 
-    async def get_members(self, chat_id: Opt[ChatRef] = None) -> set[AccountRef]:
-        """获取聊天成员列表"""
-        self._scheme = await self._get_scheme(chat_id)
-        return await self._scheme.get_members()
-
-    @listen_to(Method.GET, "/mine")
-    async def get_mine(
-        self, chat_type: Opt[ChatType] = None, return_in: Lit["id", "full"] = "id"
-    ) -> tuple[ChatRef | Chat, ...]:
-        """获取我的聊天
-
-        :param chat_type: 聊天类型
-        :param return_in: 返回类型，默认为 ID 列表
-            - "id": 仅返回聊天 ID 列表
-            - "full": 返回完整的聊天对象列表
-        :return: 聊天列表
-
-        Docs
-        ----
-        - `APIFOX <https://app.apifox.com/link/project/4406548/apis/api-275041592>`_
+        :param user_id: 用户 ID
+        :param chat_type: 聊天类型过滤
+        :return: 聊天 ID 列表
         """
-        query_coms = (Chat.type.equals(chat_type),) if chat_type else ()
-        if return_in == "full":
-            return await self._dao.select(*query_coms)
-        elif return_in == "id":
-            return await self._dao.select_field(Chat._id, *query_coms)
-        raise ParamsInvalid("unsupported", return_in=return_in)
+        with SessionLocal() as db:
+            statement = sqlmodel.select(Chat.id).where(Chat.created_by == user_id)
+            if chat_type:
+                statement = statement.where(Chat.type == chat_type.value)
+            results = db.exec(statement).all()
+            return list(results)
 
-    @listen_to(Method.PUT, "/direct_message/{to_id}")
-    async def create_dm_chat(
-        self,
+    @classmethod
+    def create_dm_chat(
+        cls,
+        from_id: AccountRef,
         to_id: AccountRef,
-        from_id: Opt[AccountRef] = None,
-    ) -> Chat:
+    ) -> tuple[Chat, bool]:
         """创建私信聊天
 
         如果两者已经存在私信聊天，则返回已存在的聊天
 
-        :param to_id: 私聊对象
-        :param from_id: 私聊发起者
+        :param from_id: 发起者 ID
+        :param to_id: 目标用户 ID
+        :return: (聊天对象, 是否新创建)
+        :raises ValueError: 如果试图与自己创建私信
         """
-        from_id = from_id or AccountRef(self._operator.id)  # TODO use param getter (resolver)
-
         if from_id == to_id:
-            raise Conflict("cannot create a direct message chat with yourself")
+            raise ValueError("cannot create a direct message chat with yourself")
 
-        try:
-            self._scheme = await self._dao.select_one(
-                Chat.type.equals(ChatType.DIRECT_MESSAGE),
-                Chat.members.contains(to_id, from_id),
+        with SessionLocal() as db:
+            # 尝试查找已存在的私信聊天
+            statement = sqlmodel.select(Chat).where(
+                Chat.type == ChatType.DIRECT_MESSAGE.value
             )
-        except NotFound:
-            # 创建私信聊天
-            self._scheme = await self.insert(
-                Chat(
-                    _task_context=self,
-                    _id=ChatRef(0),
-                    type=ChatType.DIRECT_MESSAGE,
-                    created_by=from_id,
-                    members={to_id, from_id},
-                )
+            chats = db.exec(statement).all()
+
+            for chat in chats:
+                if chat.members:
+                    members = set(json.loads(chat.members))
+                    if {from_id, to_id} == members:
+                        return chat, False
+
+            # 创建新的私信聊天
+            members_json = json.dumps([from_id, to_id])
+            chat = Chat(
+                type=ChatType.DIRECT_MESSAGE.value,
+                created_by=from_id,
+                members=members_json,
             )
-            self._task_result.status = TaskStatus.CREATED
+            db.add(chat)
+            db.commit()
+            db.refresh(chat)
+            return chat, True
 
-        return self._scheme
-
-    async def create_pr_chat(self, partner_request: PartnerRequest) -> Chat:
+    @classmethod
+    def create_pr_chat(cls, partner_request: "PartnerRequest") -> Chat:
         """创建搭子请求群聊
 
-        - 创建者是搭子请求的创建者
-        - 成员列表为 None
+        :param partner_request: 搭子请求
+        :return: 创建的聊天
         """
-        return await self.insert(
-            Chat(
-                _id=ChatRef(0),
-                type=ChatType.PARTNER_REQUEST,
+        with SessionLocal() as db:
+            chat = Chat(
+                type=ChatType.PARTNER_REQUEST.value,
                 created_by=partner_request.created_by,
                 members=None,
             )
-        )
+            db.add(chat)
+            db.commit()
+            db.refresh(chat)
+            return chat
 
-    async def create_partner_application_chat(
-        self,
+    @classmethod
+    def create_partner_application_chat(
+        cls,
         application: "PartnerApplication",
         pr_chat_id: ChatRef,
     ) -> Chat:
         """创建搭子申请群聊
 
-        1. 创建搭子申请群聊
-        3. 链接搭子申请群聊到搭子请求群聊的子群聊中
-
         :param application: 搭子申请
         :param pr_chat_id: 搭子请求群聊 ID
+        :return: 创建的聊天
         """
-        # 1. create chat
-        chat = await self.insert(
-            Chat(
-                _id=ChatRef(0),
-                type=ChatType.PARTNER_APPLICATION,
+        with SessionLocal() as db:
+            chat = Chat(
+                type=ChatType.PARTNER_APPLICATION.value,
                 created_by=application.applicant,
-                parent=pr_chat_id,  # 链接到搭子请求群聊
+                parent=pr_chat_id,
                 members=None,
             )
-        )
+            db.add(chat)
+            db.commit()
+            db.refresh(chat)
+            return chat
 
-        return chat
+    @classmethod
+    def close_chat(cls, chat_id: ChatRef) -> Opt[Chat]:
+        """关闭群聊
 
-    @listen_to(Method.GET, "/unread")
-    async def get_my_unread(
-        self,
-    ) -> StreamingBody:
-        """持续获取未读消息"""
-        redis = DefaultRedis()
-        listen_to_queue = f"unread_messages:{self._operator.id}"
+        :param chat_id: 聊天 ID
+        :return: 更新后的聊天对象，如果不存在则返回 None
+        """
+        with SessionLocal() as db:
+            chat = db.get(Chat, chat_id)
+            if not chat:
+                return None
+            chat.status = ChatStatus.CLOSED.value
+            db.add(chat)
+            db.commit()
+            db.refresh(chat)
+            return chat
 
-        # await redis.subscribe(*listen_to_channels)
-
-        stop = False
-
-        async def _get_my_unread() -> StreamingBody.GeneratorType:
-            while not stop:
-                # message = await redis.get_message()
-                message_id = await redis.pop(listen_to_queue)
-                yield PlainTextBody(message_id.decode("utf-8"))
-            self._logger.info("Stop listening for unread messages")
-
-        async def _cleanup() -> None:
-            nonlocal stop
-            stop = True
-            await redis.close()
-
-        return StreamingBody(
-            generator=_get_my_unread(),
-            cleanup=_cleanup,
-        )
-
-    async def close(self, chat_id: Opt[ChatRef] = None) -> Chat:
-        """关闭群聊"""
-        self._scheme = await self._get_scheme(_id=chat_id)
-        self._scheme.status = self._scheme.status.to_closed()
-        return await self._update_scheme()

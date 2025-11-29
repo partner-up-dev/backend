@@ -24,10 +24,10 @@ class SupabaseAuth:
     def get_anon_client(cls) -> AsyncGoTrueClient:
         settings = get_settings()
         return AsyncGoTrueClient(
-            url=settings.supabase_url + "/auth/v1",
+            url=settings.supabase.url + "/auth/v1",
             headers={
-                "apiKey": settings.supabase_anon_key,
-                "authorization": f"Bearer {settings.supabase_anon_key}",
+                "apiKey": settings.supabase.anon_key,
+                "authorization": f"Bearer {settings.supabase.anon_key}",
             },
         )
 
@@ -35,9 +35,9 @@ class SupabaseAuth:
     def get_authenticated_client(cls, access_token: str) -> AsyncGoTrueClient:
         settings = get_settings()
         return AsyncGoTrueClient(
-            url=settings.supabase_url + "/auth/v1",
+            url=settings.supabase.url + "/auth/v1",
             headers={
-                "apiKey": settings.supabase_anon_key,
+                "apiKey": settings.supabase.anon_key,
                 "authorization": f"Bearer {access_token}",
             },
         )
@@ -46,10 +46,10 @@ class SupabaseAuth:
     def get_serv_client(cls) -> AsyncGoTrueClient:
         settings = get_settings()
         return AsyncGoTrueClient(
-            url=settings.supabase_url + "/auth/v1",
+            url=settings.supabase.url + "/auth/v1",
             headers={
-                "apiKey": settings.supabase_serv_key,
-                "authorization": f"Bearer {settings.supabase_serv_key}",
+                "apiKey": settings.supabase.serv_key,
+                "authorization": f"Bearer {settings.supabase.serv_key}",
             },
         )
 

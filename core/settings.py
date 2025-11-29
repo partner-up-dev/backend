@@ -1,60 +1,120 @@
-"""Application Settings - All configuration from environment variables."""
+"""Application Settings - All configuration from environment variables.
 
+Settings are organized by domain using nested models.
+Environment variables use nested delimiter '__' to map to nested fields.
+Example: DATABASE__URL maps to settings.database.url
+
+The default env file location is /run/secrets/.env for production deployments.
+This can be overridden by setting the ENV_FILE environment variable.
+For development, create a .env file in the project root and set ENV_FILE=.env
+"""
+
+import os
 from functools import lru_cache
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+# Default env file path - can be overridden by ENV_FILE environment variable
+_ENV_FILE = os.getenv("ENV_FILE", "/run/secrets/.env")
 
-    # Environment
-    env: str = "development"
 
-    # Database
-    database_url: str = ""
+class DatabaseSettings(BaseModel):
+    """Database configuration."""
+    url: str = ""
 
-    # Redis
-    redis_host: str = "localhost"
-    redis_port: int = 6379
-    redis_password: str = ""
-    redis_db: int = 0
 
-    # Auth / JWT
+class RedisSettings(BaseModel):
+    """Redis configuration."""
+    host: str = "localhost"
+    port: int = 6379
+    password: str = ""
+    db: int = 0
+
+
+class AuthSettings(BaseModel):
+    """Authentication / JWT configuration."""
     jwt_secret_key: str = ""
     jwt_algorithms: list[str] = ["HS256"]
     jwt_allowed_audiences: tuple[str, ...] = ("authenticated", "anon", "service_role")
 
-    # Transport / Server
-    http_host: str = "0.0.0.0"
-    http_port: int = 8000
-    http_real_host: str = "localhost"
 
-    # Supabase
-    supabase_url: str = ""
-    supabase_serv_key: str = ""
-    supabase_anon_key: str = ""
+class HttpSettings(BaseModel):
+    """HTTP Server configuration."""
+    host: str = "0.0.0.0"
+    port: int = 8000
+    real_host: str = "localhost"
 
-    # WeChat
-    weixin_partner_up_wxmp_appid: str = "wx7674f72ff1eb49e6"
-    weixin_partner_up_wxmp_secret: str = ""
-    weixin_partner_up_wxsa_appid: str = ""
-    weixin_partner_up_wxsa_secret: str = ""
 
-    # WeChat Pay
-    wechat_pay_mchid: str = ""
-    wechat_pay_pri_key_path: str = ""
-    wechat_pay_serial_no: str = ""
-    wechat_pay_api_v3_key: str = ""
-    wechat_pay_sign_type: str = "RSA"
-    wechat_pay_cert_dir: str = ""
+class SupabaseSettings(BaseModel):
+    """Supabase configuration."""
+    url: str = ""
+    serv_key: str = ""
+    anon_key: str = ""
 
-    # LBS
-    lbs_apikey: str = ""
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+class WeixinSettings(BaseModel):
+    """WeChat configuration.
+
+    The partner_up_wxmp_appid has a default value for backwards compatibility,
+    but should be set via environment variables for different environments.
+    """
+    partner_up_wxmp_appid: str = ""
+    partner_up_wxmp_secret: str = ""
+    partner_up_wxsa_appid: str = ""
+    partner_up_wxsa_secret: str = ""
+
+
+class WechatPaySettings(BaseModel):
+    """WeChat Pay configuration."""
+    mchid: str = ""
+    pri_key_path: str = ""
+    serial_no: str = ""
+    api_v3_key: str = ""
+    sign_type: str = "RSA"
+    cert_dir: str = ""
+
+
+class LbsSettings(BaseModel):
+    """Location-Based Services configuration."""
+    apikey: str = ""
+
+
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables.
+
+    Settings are organized by domain using nested models.
+    Environment variables use nested delimiter '__' to map to nested fields.
+
+    Examples:
+        DATABASE__URL -> settings.database.url
+        REDIS__HOST -> settings.redis.host
+        AUTH__JWT_SECRET_KEY -> settings.auth.jwt_secret_key
+
+    The env file location defaults to /run/secrets/.env but can be overridden
+    by setting the ENV_FILE environment variable.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        env_nested_delimiter="__",
+        extra="ignore",
+    )
+
+    # Environment
+    env: str = "development"
+
+    # Nested settings by domain
+    database: DatabaseSettings = DatabaseSettings()
+    redis: RedisSettings = RedisSettings()
+    auth: AuthSettings = AuthSettings()
+    http: HttpSettings = HttpSettings()
+    supabase: SupabaseSettings = SupabaseSettings()
+    weixin: WeixinSettings = WeixinSettings()
+    wechat_pay: WechatPaySettings = WechatPaySettings()
+    lbs: LbsSettings = LbsSettings()
 
 
 @lru_cache
