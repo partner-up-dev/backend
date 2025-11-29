@@ -1,181 +1,218 @@
-"""搭子申请管理器"""
+"""搭子申请管理器
+
+Business logic for partner application operations using SQLModel and FastAPI patterns.
+"""
+
+__all__ = ["PartnerApplicationManager"]
 
 import typing
-from typing import Annotated as Anno
+import json
+import structlog
+from typing import Optional as Opt
 
-from blue_firmament import Method, listen_to
-from blue_firmament.exceptions import Conflict, ParamsInvalid
-from blue_firmament.manager import CommonManager, PresetHandlerConfig
-from blue_firmament.scheme import ListConverter
-from blue_firmament.task import TaskStatus
+import sqlmodel
+
+from core.engine import SessionLocal
 from account.schemas import AccountRef
-from communication.schemas.chat import ChatRef
+from communication.managers.chat import ChatManager
 from ...schemas.partner_request import (
     PartnerApplication,
     PartnerApplicationRef,
+    PartnerApplicationStatus,
     PartnerRoleRef,
     PartnerRequestRef,
     SubPartnerApplication,
 )
-
-from communication.managers.chat import ChatManager
-from communication.managers.message.main import (
-    PartnerApplicationMessageManager,
-)
-from .base import BasePRManager
+from .base import PartnerRequestManager
 from .partner import PartnerManager
 
 
-class PartnerApplicationManager(
-    CommonManager[PartnerApplication, PartnerApplicationRef],
-    scheme_cls=PartnerApplication,
-    path_prefix=BasePRManager.__path_prefix__ + "/application",
-    manager_name="application",
-    preset_handler_config=PresetHandlerConfig(get=True),
-):
-    @listen_to(Method.POST, "")
-    async def create(
-        self, partner_request_id: PartnerRequestRef, body: typing.List[SubPartnerApplication]
-    ) -> PartnerApplication:
-        """创建搭子申请
+logger = structlog.get_logger(__name__)
 
-        TODO 事务性
 
-        Docs
-        ----
-        - `APIFOX <https://app.apifox.com/link/project/4406548/apis/api-176452036>`_
-        - `DOC <siyuan://blocks/20250429155614-t3cesu2>`_
+class PartnerApplicationManager:
+    """Partner application business logic manager.
+
+    Provides methods for partner application operations.
+    Uses SQLModel sessions directly.
+    """
+
+    @classmethod
+    def get(cls, application_id: PartnerApplicationRef) -> Opt[PartnerApplication]:
+        """Get a partner application by ID."""
+        with SessionLocal() as db:
+            return db.get(PartnerApplication, application_id)
+
+    @classmethod
+    def create(
+        cls,
+        partner_request_id: PartnerRequestRef,
+        applicant: AccountRef,
+        sub_applications: typing.List[SubPartnerApplication],
+    ) -> Opt[PartnerApplication]:
+        """Create a partner application.
+
+        :param partner_request_id: Partner request ID
+        :param applicant: Applicant account ID
+        :param sub_applications: List of sub-applications
+        :return: Created application or None
+        :raises ValueError: If PR chat is None
         """
-        pr = await BasePRManager(self).get(partner_request_id)
+        pr = PartnerRequestManager.get(partner_request_id)
+        if not pr:
+            raise ValueError("Partner request not found")
+
+        if pr.chat is None:
+            raise ValueError("Partner request chat is None")
+
+        # Create application chat
         application = PartnerApplication(
-            _task_context=self,
-            _id=PartnerApplicationRef(0),
-            applicant=AccountRef(self._operator.id),
+            applicant=applicant,
             partner_request=partner_request_id,
-            sub_applications=body,
-            chat=ChatRef(0),
+            sub_applications=json.dumps([s.model_dump() for s in sub_applications]),
+            chat=0,  # Will be updated after creating chat
         )
 
-        if pr.chat is not None:
-            # create application chat
-            # link application chat to partner_request chat
-            application_chat = await ChatManager(self).create_partner_application_chat(
-                application=application, pr_chat_id=pr.chat
-            )
+        # Create application chat linked to PR chat
+        application_chat = ChatManager.create_partner_application_chat(application, pr.chat)
 
-            # create application
-            application.chat = application_chat._id
-            application = await self._dao.insert(application)
-
-            # sent application message
-            await PartnerApplicationMessageManager(self).send(
-                application=application, application_chat_id=application_chat._id
-            )
-
-            self._task_result.status = TaskStatus.CREATED
+        with SessionLocal() as db:
+            application.chat = application_chat.id
+            db.add(application)
+            db.commit()
+            db.refresh(application)
             return application
 
-        raise ParamsInvalid("pr chat is None")
+    @classmethod
+    def get_mine(cls, account_id: AccountRef) -> list[PartnerApplication]:
+        """Get applications for an account.
 
-    @listen_to(Method.GET, "/mine")
-    async def get_mine(self) -> tuple[PartnerApplication]:
-        """获取我的搭子申请
-
-        Docs
-        ----
-        - `SIYUAN <siyuan://blocks/20250430233324-hgjelvb>`_
+        :param account_id: Account ID
+        :return: List of applications
         """
-        return await self._dao.select(
-            PartnerApplication.applicant.equals(self._session.operator.id),
-        )
+        with SessionLocal() as db:
+            statement = sqlmodel.select(PartnerApplication).where(
+                PartnerApplication.applicant == account_id
+            )
+            return list(db.exec(statement).all())
 
-    @listen_to(Method.PUT, "/{application_id}/withdraw")
-    async def withdraw(
-        self,
+    @classmethod
+    def withdraw(
+        cls,
         application_id: PartnerApplicationRef,
-        body: str,
-    ) -> PartnerApplication:
-        """撤回申请
+        reason: str,
+    ) -> Opt[PartnerApplication]:
+        """Withdraw an application.
 
-        :param application_id: 搭子申请 ID
-        :param body: 取消原因
-
-        Docs
-        ----
-        - `SIYUAN <siyuan://blocks/20250429214653-f9k1dyk>`_
+        :param application_id: Application ID
+        :param reason: Withdrawal reason
+        :return: Updated application or None
+        :raises ValueError: If application is not open
         """
-        application = await self._get_scheme(application_id)
+        with SessionLocal() as db:
+            application = db.get(PartnerApplication, application_id)
+            if not application:
+                return None
 
-        # 更新数据
-        application.withdraw(reason=body)
-        await self._update_scheme(application)
+            status = PartnerApplicationStatus(application.status)
+            if not status.is_open():
+                raise ValueError("Application is not open")
 
-        # 关闭搭子申请群聊 非主要
-        await ChatManager(self).close(application.chat)
+            application.status = PartnerApplicationStatus.WITHDRAWN.value
+            application.eclose_reason = reason
+            db.add(application)
+            db.commit()
+            db.refresh(application)
 
-        return application
+            # Close the application chat
+            ChatManager.close_chat(application.chat)
 
-    @listen_to(Method.PUT, "/{application_id}/approve")
-    async def approve(
-        self,
+            return application
+
+    @classmethod
+    def approve(
+        cls,
         application_id: PartnerApplicationRef,
-        body: Anno[list[PartnerRoleRef], ListConverter(PartnerRoleRef, min_len=1)],
-    ) -> PartnerApplication:
-        """同意搭子申请
+        admin_id: AccountRef,
+        role_ids: list[PartnerRoleRef],
+    ) -> Opt[PartnerApplication]:
+        """Approve an application.
 
-        1. 更新搭子申请状态
-        2. 更新搭子请求搭子列表，将同意申请人扮演的搭子角色扮演者设置为申请人
-
-        Docs
-        ----
-        `SIYUAN <siyuan://blocks/20250429235823-ud2mvnc>`_
+        :param application_id: Application ID
+        :param admin_id: Admin account ID (must be PR admin)
+        :param role_ids: List of role IDs to assign
+        :return: Updated application or None
+        :raises ValueError: If not admin, application not open, or no roles available
         """
-        self._scheme = await self._get_scheme(_id=application_id)
-        partner_manager = PartnerManager(self)
+        with SessionLocal() as db:
+            application = db.get(PartnerApplication, application_id)
+            if not application:
+                return None
 
-        await BasePRManager(self)._must_be_admin(self._scheme.partner_request)
+            # Check admin permission
+            pr = PartnerRequestManager.get(application.partner_request)
+            if not pr or not pr.is_admin(admin_id):
+                raise ValueError("Must be admin")
 
-        played = 0
-        for role_id in body:
-            try:
-                await partner_manager.play(
-                    pr_id=self._scheme.partner_request,
-                    role_id=role_id,
-                    player=self._scheme.applicant,
-                )
-            except Conflict:
-                self._logger.warning("partner not free anymore, skip", partner=role_id)
-                continue
-            else:
-                played += 1
+            status = PartnerApplicationStatus(application.status)
+            if not status.is_open():
+                raise ValueError("Application is not open")
 
-        if played == 0:
-            raise Conflict("No role is available for this application")
+            # Try to assign roles
+            played = 0
+            for role_id in role_ids:
+                try:
+                    PartnerManager.play(
+                        pr_id=application.partner_request,
+                        role_id=role_id,
+                        player=application.applicant,
+                    )
+                    played += 1
+                except ValueError:
+                    logger.warning("Partner not free anymore, skip", partner=role_id)
+                    continue
 
-        self._scheme.approve()
-        await self._update_scheme()
+            if played == 0:
+                raise ValueError("No role is available for this application")
 
-        await self._emit(".approved", parameters={"application_id": self._scheme._id})
-        # TODO 检查其它搭子请求是否过期 BGTASK
+            application.status = PartnerApplicationStatus.APPROVED.value
+            db.add(application)
+            db.commit()
+            db.refresh(application)
+            return application
 
-        return self._scheme
+    @classmethod
+    def reject(
+        cls,
+        application_id: PartnerApplicationRef,
+        admin_id: AccountRef,
+        reason: str,
+    ) -> Opt[PartnerApplication]:
+        """Reject an application.
 
-    @listen_to(Method.PUT, "/{application_id}/reject")
-    async def reject(
-        self, application_id: PartnerApplicationRef, body: str
-    ) -> PartnerApplication:
-        """驳回搭子申请
-
-        Docs
-        ----
-        `SIYUAN <siyuan://blocks/20250429235836-q6e3sdj>`_
+        :param application_id: Application ID
+        :param admin_id: Admin account ID (must be PR admin)
+        :param reason: Rejection reason
+        :return: Updated application or None
+        :raises ValueError: If not admin or application not open
         """
-        self._scheme = await self._get_scheme(application_id)
-        await BasePRManager(self)._must_be_admin(self._scheme.partner_request)
+        with SessionLocal() as db:
+            application = db.get(PartnerApplication, application_id)
+            if not application:
+                return None
 
-        self._scheme.reject(reason=body)
-        await self._update_scheme()
+            # Check admin permission
+            pr = PartnerRequestManager.get(application.partner_request)
+            if not pr or not pr.is_admin(admin_id):
+                raise ValueError("Must be admin")
 
-        self._emit(".rejected", parameters={"application_id": self._scheme._id})
+            status = PartnerApplicationStatus(application.status)
+            if not status.is_open():
+                raise ValueError("Application is not open")
 
-        return self._scheme
+            application.status = PartnerApplicationStatus.REJECTED.value
+            application.eclose_reason = reason
+            db.add(application)
+            db.commit()
+            db.refresh(application)
+            return application

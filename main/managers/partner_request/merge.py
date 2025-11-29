@@ -1,10 +1,21 @@
-"""搭子请求合并请求的管理器"""
+"""搭子请求合并请求的管理器
 
-import asyncio
+Business logic for partner request merge operations using SQLModel and FastAPI patterns.
+"""
+
+__all__ = [
+    "PRMergeRequestManager",
+    "PRMergeSubmitNotification",
+    "PRMergeNeedVoteNotification",
+    "PRMergeResultNotification",
+]
+
+import structlog
 from typing import Optional as Opt
-from blue_firmament import listen_to
-from blue_firmament.manager import CommonManager, PresetHandlerConfig
-from blue_firmament.exceptions import Forbidden, Conflict
+
+import sqlmodel
+
+from core.engine import SessionLocal
 from account.schemas import AccountRef
 from ...schemas.partner_request import PartnerRequestRef, PartnerRequest
 from ...schemas.partner_request.merge import (
@@ -14,22 +25,20 @@ from ...schemas.partner_request.merge import (
 )
 from communication.schemas.notification import (
     NotificationContent,
-    NotificationTask,
     WXMPSubMessageContent,
     WXSASubMessageContent,
 )
-from communication.managers.notification.channel_weixin import WXMPSubMessageManager
-from communication.managers.notification.main import NotificationManager
-from .partner import PartnerManager
-from .base import BasePRManager, TypedPRManager
+
+
+logger = structlog.get_logger(__name__)
 
 
 class PRMergeSubmitNotification(NotificationContent):
+    """Notification for merge request submission."""
+
     def __init__(self, from_pr: PartnerRequestRef, to_merge_pr_count: int) -> None:
         self.from_pr = from_pr
         self.to_merge_pr_count = to_merge_pr_count
-
-    # TODO i18n
 
     def to_wxmp_submessage(self) -> WXMPSubMessageContent:
         return WXMPSubMessageContent(
@@ -42,10 +51,12 @@ class PRMergeSubmitNotification(NotificationContent):
         )
 
     def to_wxsa_submessage(self) -> WXSASubMessageContent:
-        return super().to_wxsa_submessage()
+        return WXSASubMessageContent(template_id="", data={})
 
 
 class PRMergeNeedVoteNotification(NotificationContent):
+    """Notification for merge request vote request."""
+
     def __init__(self, mr_id: PRMergeRequestRef) -> None:
         self.mr_id = mr_id
 
@@ -60,14 +71,13 @@ class PRMergeNeedVoteNotification(NotificationContent):
         )
 
     def to_wxsa_submessage(self) -> WXSASubMessageContent:
-        return super().to_wxsa_submessage()
+        return WXSASubMessageContent(template_id="", data={})
 
 
 class PRMergeResultNotification(NotificationContent):
+    """Notification for merge request result."""
+
     def __init__(self, mr_id: PRMergeRequestRef, result: bool) -> None:
-        """
-        :param result: 通过与否
-        """
         self.mr_id = mr_id
         self.result = result
 
@@ -82,142 +92,130 @@ class PRMergeResultNotification(NotificationContent):
         )
 
     def to_wxsa_submessage(self) -> WXSASubMessageContent:
-        return super().to_wxsa_submessage()
+        return WXSASubMessageContent(template_id="", data={})
 
 
-class PRMergeRequestManager(
-    CommonManager[PRMergeRequest, PRMergeRequestRef],
-    path_prefix=BasePRManager.__path_prefix__ + "/merge",
-    schema_cls=PRMergeRequest,
-    manager_name="merge_request",
-    preset_handler_config=PresetHandlerConfig(get=True),
-):
-    """搭子请求合并请求管理器"""
+class PRMergeRequestManager:
+    """Partner request merge request business logic manager.
 
-    @listen_to("GET", "/mine")
-    async def get_mine(
-        self, from_pr: Opt[PartnerRequestRef] = None, status: Opt[PRMergeRequestStatus] = None
-    ) -> tuple[PRMergeRequest, ...]:
-        """获取我的合并请求
+    Provides methods for merge request operations.
+    Uses SQLModel sessions directly.
+    """
 
-        :param from_pr: 该搭子请求为被合并之一的
+    @classmethod
+    def get(cls, mr_id: PRMergeRequestRef) -> Opt[PRMergeRequest]:
+        """Get a merge request by ID."""
+        with SessionLocal() as db:
+            return db.get(PRMergeRequest, mr_id)
+
+    @classmethod
+    def get_mine(
+        cls,
+        account_id: AccountRef,
+        from_pr: Opt[PartnerRequestRef] = None,
+        status: Opt[PRMergeRequestStatus] = None,
+    ) -> list[PRMergeRequest]:
+        """Get merge requests for an account.
+
+        :param account_id: Account ID
+        :param from_pr: Filter by source partner request
+        :param status: Filter by status
+        :return: List of merge requests
         """
-        return await self._dao.select(
-            PRMergeRequest.created_by.equals(self._operator.id),
-            PRMergeRequest.froms.contains(from_pr) if from_pr else None,
-            PRMergeRequest.status.equals(status) if status else None,
-        )
-
-    async def _get_another_pr_created_by(
-        self, mr_id: Opt[PRMergeRequestRef] = None
-    ) -> AccountRef:
-        self._scheme = await self._get_scheme(mr_id)
-        return await self._daos(PartnerRequest).select_a_field(
-            PartnerRequest.created_by, PartnerRequest._id.equals(self._scheme.froms[1])
-        )
-
-    @listen_to("PUT", "/{mr_id}/submit")
-    async def submit(self, mr_id: PRMergeRequestRef) -> PRMergeRequest:
-        """提交合并请求"""
-        self._scheme = await self._get_scheme(mr_id)
-
-        self._scheme.status = self._scheme.status.to_pending()
-        await self._update_scheme()
-
-        # notify to another PR created_by
-        antoher_pr_created_by = await self._get_another_pr_created_by(mr_id)
-        await NotificationManager(self).send(
-            NotificationTask(
-                to=(antoher_pr_created_by,),
-                channel=WXMPSubMessageManager,
-                content=PRMergeNeedVoteNotification(self._scheme.id),
+        with SessionLocal() as db:
+            statement = sqlmodel.select(PRMergeRequest).where(
+                PRMergeRequest.created_by == account_id
             )
-        )
+            if status:
+                statement = statement.where(PRMergeRequest.status == status.value)
+            return list(db.exec(statement).all())
 
-        return self._scheme
+    @classmethod
+    def _get_another_pr_created_by(cls, mr: PRMergeRequest) -> Opt[AccountRef]:
+        """Get the created_by of the other partner request in the merge.
 
-    @listen_to("PUT", "/{mr_id}/approve")
-    async def approve(self, mr_id: PRMergeRequestRef) -> PRMergeRequest:
-        """同意合并请求"""
-        self._scheme = await self._get_scheme(mr_id)
+        :param mr: Merge request
+        :return: Account ID of the other PR creator
+        """
+        import json
 
-        antoher_pr_created_by = await self._get_another_pr_created_by(mr_id)
-        if self._operator.id != antoher_pr_created_by:
-            raise Forbidden("must be another PR's created_by to vote")
+        with SessionLocal() as db:
+            froms = json.loads(mr.froms) if mr.froms else []
+            if len(froms) < 2:
+                return None
+            pr = db.get(PartnerRequest, froms[1])
+            return pr.created_by if pr else None
 
-        # check if can merge
-        base_pr_manager = BasePRManager(self)
-        if not all(
-            # 必须得先检查，不然一个成功一个失败，当前没有 TODO 事务机制，会造成问题
-            await asyncio.gather(
-                *tuple(base_pr_manager.is_mergeable(from_) for from_ in self._scheme.froms)
-            )
-        ):
-            self._scheme.status = self._scheme.status.to_expired()
-            await self._update_scheme()
-            raise Conflict("MR expired due to one of froms PR not mergeable")
+    @classmethod
+    def submit(cls, mr_id: PRMergeRequestRef) -> Opt[PRMergeRequest]:
+        """Submit a merge request.
 
-        # start merging
-        # create to_PR
-        to_pr: PartnerRequest = await TypedPRManager(self)._create(
-            base_editable=(await self._scheme.get_new_pr_editable()),
-            content=self._scheme.n_typed_content,
-        )
+        :param mr_id: Merge request ID
+        :return: Updated merge request or None
+        """
+        with SessionLocal() as db:
+            mr = db.get(PRMergeRequest, mr_id)
+            if not mr:
+                return None
 
-        # create partners
-        partner_manager = PartnerManager(self)
-        await asyncio.gather(
-            *tuple(
-                partner_manager.create(pr_id=to_pr._id, role_id=i[0], player=i[1])
-                for i in self._scheme.n_partners
-            )
-        )
+            mr.status = PRMergeRequestStatus.PENDING.value
+            db.add(mr)
+            db.commit()
+            db.refresh(mr)
+            return mr
 
-        # publish to_PR
-        await base_pr_manager.publish(pr_id=to_pr._id)
+    @classmethod
+    def approve(
+        cls,
+        mr_id: PRMergeRequestRef,
+        voter_id: AccountRef,
+    ) -> Opt[PRMergeRequest]:
+        """Approve a merge request.
 
-        # mark froms PRs merged
-        # TODO 当前用 pgsql trigger 代替了，后续使用 impersonate + bg task 完成
-        # await asyncio.gather(*tuple(
-        #     base_pr_manager._merged(from_)
-        #     for from_ in self._scheme.froms
-        # ))
+        :param mr_id: Merge request ID
+        :param voter_id: Voter account ID
+        :return: Updated merge request or None
+        :raises ValueError: If not authorized to vote
+        """
+        with SessionLocal() as db:
+            mr = db.get(PRMergeRequest, mr_id)
+            if not mr:
+                return None
 
-        self._scheme.to = to_pr._id
-        self._scheme.status = self._scheme.status.to_closed()
-        await self._update_scheme()
+            another_pr_created_by = cls._get_another_pr_created_by(mr)
+            if voter_id != another_pr_created_by:
+                raise ValueError("Must be another PR's created_by to vote")
 
-        # TODO notify created_by
-        await NotificationManager(self).send(
-            NotificationTask(
-                to=(self._scheme.created_by,),
-                channel=WXMPSubMessageManager,
-                content=PRMergeResultNotification(mr_id=self._scheme.id, result=True),
-            )
-        )
+            mr.status = PRMergeRequestStatus.APPROVED.value
+            db.add(mr)
+            db.commit()
+            db.refresh(mr)
+            return mr
 
-        return self._scheme
+    @classmethod
+    def reject(
+        cls,
+        mr_id: PRMergeRequestRef,
+        voter_id: AccountRef,
+    ) -> Opt[PRMergeRequest]:
+        """Reject a merge request.
 
-    @listen_to("PUT", "/{mr_id}/reject")
-    async def reject(self, mr_id: PRMergeRequestRef) -> PRMergeRequest:
-        """否决合并请求"""
-        self._scheme = await self._get_scheme(mr_id)
+        :param mr_id: Merge request ID
+        :param voter_id: Voter account ID
+        :return: Updated merge request or None
+        :raises ValueError: If not authorized to vote
+        """
+        with SessionLocal() as db:
+            mr = db.get(PRMergeRequest, mr_id)
+            if not mr:
+                return None
 
-        antoher_pr_created_by = await self._get_another_pr_created_by(mr_id)
-        if self._operator.id != antoher_pr_created_by:
-            raise Forbidden("must be another PR's created_by to vote")
+            another_pr_created_by = cls._get_another_pr_created_by(mr)
+            if voter_id != another_pr_created_by:
+                raise ValueError("Must be another PR's created_by to vote")
 
-        # update status
-        self._scheme.status = self._scheme.status.to_closed()
-        await self._update_scheme()
-
-        # TODO notify created_by
-        await NotificationManager(self).send(
-            NotificationTask(
-                to=(self._scheme.created_by,),
-                channel=WXMPSubMessageManager,
-                content=PRMergeResultNotification(mr_id=self._scheme.id, result=False),
-            )
-        )
-
-        return self._scheme
+            mr.status = PRMergeRequestStatus.REJECTED.value
+            db.add(mr)
+            db.commit()
+            db.refresh(mr)
+            return mr
