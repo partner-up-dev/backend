@@ -1,16 +1,29 @@
-"""Route and Location's Manager"""
+"""Route and Location's Manager
 
-from blue_firmament.manager import CommonManager, PresetHandlerConfig
-from blue_firmament.log import get_logger
+Business logic for location operations using SQLModel and FastAPI patterns.
+"""
+
+__all__ = ["LocationManager"]
+
+import structlog
+from typing import Optional as Opt
+
+from core.engine import SessionLocal
 from ...schemas.base.route import Location, LocationRef
 
-LOGGER = get_logger(__name__)
+
+logger = structlog.get_logger(__name__)
 
 
-class LocationManager(
-    CommonManager[Location, LocationRef],
-    manager_name="location",
-    scheme_cls=Location,
-    path_prefix="base/location",
-    preset_handler_config=PresetHandlerConfig(get=True),
-): ...
+class LocationManager:
+    """Location business logic manager.
+
+    Provides methods for location operations without BlueFirmament dependencies.
+    Uses SQLModel sessions directly.
+    """
+
+    @classmethod
+    def get(cls, location_id: LocationRef) -> Opt[Location]:
+        """Get a location by ID."""
+        with SessionLocal() as db:
+            return db.get(Location, location_id)

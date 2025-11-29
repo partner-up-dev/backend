@@ -2,9 +2,7 @@
 """
 
 __all__ = [
-    "BasePRManager",
-    "PartnerManager",
+    "PartnerRequestManager",
 ]
 
-from .base import BasePRManager
-from .partner import PartnerManager
+from .base import PartnerRequestManager

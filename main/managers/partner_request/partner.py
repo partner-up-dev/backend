@@ -1,120 +1,152 @@
-"""搭子（Partner）管理器"""
+"""搭子（Partner）管理器
+
+Business logic for partner operations using SQLModel and FastAPI patterns.
+"""
 
 __all__ = ["PartnerManager"]
 
+import structlog
 from typing import Optional as Opt
-from blue_firmament import listen_to, Method
-from blue_firmament.manager import CommonManager
-from blue_firmament.task import TaskStatus
+
+import sqlmodel
+
+from core.engine import SessionLocal
+from account.schemas import AccountRef
 from ...schemas.partner_request import PartnerRequestRef
 from ...schemas.partner_request.partner import Partner, PartnerRoleRef
-from account.schemas import AccountRef
 
 
-# TODO use CommonManager without p_key or separate p_key from CommonManager
-class PartnerManager(
-    CommonManager[Partner, int],
-    scheme_cls=Partner,
-    path_prefix="partner_request/{pr_id}/partner",
-    manager_name="partner",
-):
-    """搭子管理器
+logger = structlog.get_logger(__name__)
 
-    管理搭子请求中的搭子角色和扮演者
+
+class PartnerManager:
+    """Partner business logic manager.
+
+    Manages partner roles and players in partner requests.
+    Uses SQLModel sessions directly.
     """
 
-    @listen_to(Method.GET, "")
-    async def get_partners(self, pr_id: PartnerRequestRef) -> tuple[Partner, ...]:
-        """获取搭子请求的所有搭子"""
-        return await self._dao.select(
-            Partner.partner_request.equals(pr_id),
-        )
+    @classmethod
+    def get_partners(cls, pr_id: PartnerRequestRef) -> list[Partner]:
+        """Get all partners for a partner request.
 
-    @listen_to(Method.POST, "/{role_id}")
-    async def create(
-        self, pr_id: PartnerRequestRef, role_id: PartnerRoleRef, player: Opt[AccountRef] = None
-    ) -> Partner:
-        """创建搭子
-
-        :param pr_id: 搭子请求 ID
-        :param role_id: 角色 ID
-        :param player: 扮演者
+        :param pr_id: Partner request ID
+        :return: List of partners
         """
-        self._task_result.status = TaskStatus.CREATED
-        return await self.insert(
-            Partner(_task_context=self, partner_request=pr_id, role=role_id, player=player)
-        )
+        with SessionLocal() as db:
+            statement = sqlmodel.select(Partner).where(Partner.partner_request == pr_id)
+            return list(db.exec(statement).all())
 
-    @listen_to(Method.DELETE, "/{role_id}")
-    async def delete(self, pr_id: PartnerRequestRef, role_id: PartnerRoleRef) -> None:
-        """删除（一个）搭子
-
-        :param pr_id: 搭子请求 ID
-        :param role_id: 搭子角色 ID
-        """
-        to_delete = await self._dao.select_one(
-            Partner.partner_request.equals(pr_id),
-            Partner.role.equals(role_id),
-            Partner.player.is_(None),
-            Partner.history.equals([]),
-        )
-        await self._dao.delete(to_delete=to_delete)
-
-        self._task_result.status = TaskStatus.DELETED
-
-    @listen_to(Method.PUT, "/{role_id}/disable")
-    async def disable(self, pr_id: PartnerRequestRef, role_id: PartnerRoleRef) -> Partner:
-        """禁用（一个）搭子
-
-        不幂等（做不到）
-
-        :param pr_id: 搭子请求 ID
-        :param role_id: 搭子角色 ID
-        """
-        to_update = await self._dao.select_one(
-            Partner.partner_request.equals(pr_id),
-            Partner.role.equals(role_id),
-            Partner.player.is_(None),
-            Partner.disabled.is_(False),
-        )
-        to_update.disable()
-        return await self._dao.update(to_update)
-
-    async def play(
-        self,
-        role_id: PartnerRoleRef,
+    @classmethod
+    def create(
+        cls,
         pr_id: PartnerRequestRef,
+        role_id: PartnerRoleRef,
         player: Opt[AccountRef] = None,
     ) -> Partner:
-        """扮演
+        """Create a partner.
 
-        :param role_id: 搭子角色 ID
-        :param player: 扮演者账号 ID；默认为当前会话的账号 ID
-        :param pr_id: 搭子请求 ID
-        :raise Conflict: 搭子角色非空置时
+        :param pr_id: Partner request ID
+        :param role_id: Role ID
+        :param player: Optional player account ID
+        :return: Created partner
         """
-        partner = await self._dao.select_one(
-            Partner.partner_request.equals(pr_id),
-            Partner.role.equals(role_id),
-        )
-        partner.set_player(player or AccountRef(self._operator.id))
-        await self._update_scheme(partner)
+        with SessionLocal() as db:
+            partner = Partner(
+                partner_request=pr_id,
+                role=role_id,
+                player=player,
+            )
+            db.add(partner)
+            db.commit()
+            db.refresh(partner)
+            return partner
 
-        await self._emit(".played", {"pr_id": pr_id})
+    @classmethod
+    def delete(cls, pr_id: PartnerRequestRef, role_id: PartnerRoleRef) -> bool:
+        """Delete a partner.
 
-        return self._scheme
-
-    @listen_to(None, "/played", transporters=("event",))
-    async def played(self, pr_id: PartnerRequestRef):
+        :param pr_id: Partner request ID
+        :param role_id: Role ID
+        :return: True if deleted
+        :raises ValueError: If partner not found or has player/history
         """
-        检查是否该搭子请求的所有搭子都已经被扮演，如果是的话则进入可执行
-        """
-        partner_players = await self._dao.select_field(
-            Partner.player, Partner.partner_request.equals(pr_id)
-        )
-        if any(i is None for i in partner_players):
-            return
-        else:
-            from .base import BasePRManager
+        with SessionLocal() as db:
+            statement = sqlmodel.select(Partner).where(
+                Partner.partner_request == pr_id,
+                Partner.role == role_id,
+                Partner.player.is_(None),
+            )
+            partner = db.exec(statement).first()
+            if not partner:
+                raise ValueError("Partner not found or has player")
 
-            await BasePRManager(self).make_ready(pr_id=pr_id)
+            db.delete(partner)
+            db.commit()
+            return True
+
+    @classmethod
+    def disable(cls, pr_id: PartnerRequestRef, role_id: PartnerRoleRef) -> Opt[Partner]:
+        """Disable a partner.
+
+        :param pr_id: Partner request ID
+        :param role_id: Role ID
+        :return: Updated partner or None
+        :raises ValueError: If partner not found or not free
+        """
+        with SessionLocal() as db:
+            statement = sqlmodel.select(Partner).where(
+                Partner.partner_request == pr_id,
+                Partner.role == role_id,
+                Partner.player.is_(None),
+                Partner.disabled.is_(False),
+            )
+            partner = db.exec(statement).first()
+            if not partner:
+                raise ValueError("Partner not found or not free")
+
+            partner.disable()
+            db.add(partner)
+            db.commit()
+            db.refresh(partner)
+            return partner
+
+    @classmethod
+    def play(
+        cls,
+        pr_id: PartnerRequestRef,
+        role_id: PartnerRoleRef,
+        player: AccountRef,
+    ) -> Opt[Partner]:
+        """Assign a player to a partner role.
+
+        :param pr_id: Partner request ID
+        :param role_id: Role ID
+        :param player: Player account ID
+        :return: Updated partner or None
+        :raises ValueError: If partner not found or not free
+        """
+        with SessionLocal() as db:
+            statement = sqlmodel.select(Partner).where(
+                Partner.partner_request == pr_id,
+                Partner.role == role_id,
+            )
+            partner = db.exec(statement).first()
+            if not partner:
+                raise ValueError("Partner not found")
+
+            partner.set_player(player)
+            db.add(partner)
+            db.commit()
+            db.refresh(partner)
+            return partner
+
+    @classmethod
+    def check_all_played(cls, pr_id: PartnerRequestRef) -> bool:
+        """Check if all partners have players.
+
+        :param pr_id: Partner request ID
+        :return: True if all partners have players
+        """
+        partners = cls.get_partners(pr_id)
+        return all(p.player is not None for p in partners)

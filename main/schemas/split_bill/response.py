@@ -1,13 +1,13 @@
 
 from typing import Optional as Opt
-from blue_firmament.scheme import BaseScheme
-from .contribution import Contribution
-from .main import SplitBill
+from pydantic import BaseModel
 
 
-class SplitBillV2CreateRes(SplitBill):
-    contributions: list[Contribution]
+class SplitBillV2CreateRes(BaseModel):
+    """Response for split bill creation."""
     submitted: Opt[bool] = None
 
-class SplitBillV1InitiateTransferRes(BaseScheme, proxy=False):
+
+class SplitBillV1InitiateTransferRes(BaseModel):
+    """Response for split bill transfer initiation."""
     package_info: str

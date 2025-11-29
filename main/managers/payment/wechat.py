@@ -4,8 +4,8 @@ date: 2024-09-15
 desc: 微信支付
 issues:
     #63
-references:
 
+Refactored to remove BlueFirmament dependencies.
 """
 
 __module_name__ = "WechatPayment"
@@ -15,7 +15,9 @@ import datetime
 import random
 import string
 import typing
+import structlog
 from typing import Optional as Opt, Literal as Lit
+from fastapi import HTTPException
 from .base import BasePaymentManager
 from ...schemas.base import Currency
 from ...schemas.payment.wechat import (
@@ -23,26 +25,11 @@ from ...schemas.payment.wechat import (
     WechatPaymentRefundTransaction,
     WechatPaymentTransferTransaction,
 )
-from blue_firmament.task import Task
 
 # libs
 from wechatpayv3 import WeChatPay as WechatPayClient, WeChatPayType as PayType, SignType
 
-# schemas
-
-# managers
-# from app.managers.account import AccountManager
-
-# exceptions
-from blue_firmament.exceptions import (
-    ParamsInvalid,
-    NotFound,
-    ExternalError,
-    # TooManyRequests
-)
-
 # utils
-from blue_firmament.utils.datetime_ import get_datetimez
 import json
 import re
 from account.schemas import AccountRef
@@ -56,12 +43,18 @@ from ...schemas.payment.base import (
 
 # setting
 from settings.wechat_pay import get_setting
-from blue_firmament.log import get_logger
 
-logger = get_logger("WechatPayment")
+logger = structlog.get_logger("WechatPayment")
 
 
-class WechatPaymentException(ExternalError):
+def get_datetimez(timezone=None):
+    """Get current datetime with timezone."""
+    if timezone:
+        return datetime.datetime.now(timezone)
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+class WechatPaymentException(HTTPException):
     """
     微信支付平台异常对象
 
@@ -76,7 +69,7 @@ class WechatPaymentException(ExternalError):
         errmsg = res.get("message", None)
         self.detail = res.get("detail", None)
 
-        super().__init__(500, errmsg, **kwargs)
+        super().__init__(status_code=500, detail=errmsg)
 
 
 class WechatPaymentManager(
@@ -122,7 +115,8 @@ class WechatPaymentManager(
         :param cert_dir: 证书存放的文件夹
         :type cert_dir: str
         """
-        pri_key = open(pri_key_path, "r").read()
+        with open(pri_key_path, "r") as f:
+            pri_key = f.read()
         cls.__client__ = WechatPayClient(
             wechatpay_type=paytype,
             appid=appid,
@@ -147,9 +141,9 @@ class WechatPaymentManager(
     @classmethod
     def _validate_id(cls, _id: str) -> None:
         if not (6 <= len(_id) <= 32):
-            raise ParamsInvalid("id length should be 6~32", _id=_id)
+            raise HTTPException(status_code=400, detail=f"id length should be 6~32: {_id}")
         if not re.match(r"^[0-9A-Za-z_\-\|\*]+$", _id):
-            raise ParamsInvalid("invalid id", _id=_id)
+            raise HTTPException(status_code=400, detail=f"invalid id: {_id}")
 
     def resolve_res(self, http_status_code: int, res_text: str) -> dict:
         """处理微信支付接口的返回
@@ -174,15 +168,17 @@ class WechatPaymentManager(
         else:
             code = res["code"]
             if code == "APPID_MCHID_NOT_MATCH":
-                raise ParamsInvalid(
-                    "client not served by this mch",
-                    client_id=self._client._appid,
-                    mch_id=self._client._mchid,
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"client not served by this mch: {self._client._appid}"
                 )
             elif code == "OUT_TRADE_NO_USED":
-                raise ParamsInvalid("_id duplicated")
+                raise HTTPException(status_code=400, detail="_id duplicated")
             elif code == "OPENID_MISMATCH":
-                raise ParamsInvalid("openid not match the appid", client_id=self._client._appid)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"openid not match the appid: {self._client._appid}"
+                )
             elif code == "NOT_ENOUGH":
                 # TODO 商户余额不足
                 pass
@@ -193,9 +189,9 @@ class WechatPaymentManager(
                 # TODO 用户账号异常，商户可以自定处理退款
                 pass
             elif code == "ORDER_NOT_EXIST":
-                raise NotFound("transaction not exist")
+                raise HTTPException(status_code=404, detail="transaction not exist")
 
-            raise ExternalError("wechat_pay")
+            raise HTTPException(status_code=500, detail="wechat_pay error")
 
     def _get_openid(self, account_id: AccountRef) -> str:
         """获取该用户在该 APPID 中的 OPENID"""
@@ -318,42 +314,63 @@ class WechatPaymentManager(
             status=self._to_transacation_status(res["trade_state"]),
         )
 
-    def _decrypt_callback(self, task: Task) -> dict:
-        """校验并解密微信回调通知的内容"""
-        headers = {
-            "Wechatpay-Signature": task.get_prebody_item("wechatpay-signature"),
-            "Wechatpay-Timestamp": task.get_prebody_item("wechatpay-timestamp"),
-            "Wechatpay-Nonce": task.get_prebody_item("wechatpay-nonce"),
-            "Wechatpay-Serial": task.get_prebody_item("wechatpay-serial"),
+    def _decrypt_callback(self, data: dict, headers: dict) -> dict:
+        """Verify and decrypt WeChat callback notification content.
+
+        :param data: Callback request body as dictionary
+        :param headers: HTTP headers from the callback request
+        :return: Decrypted resource content
+        :raises HTTPException: If callback verification fails
+        """
+        wechat_headers = {
+            "Wechatpay-Signature": headers.get("wechatpay-signature", ""),
+            "Wechatpay-Timestamp": headers.get("wechatpay-timestamp", ""),
+            "Wechatpay-Nonce": headers.get("wechatpay-nonce", ""),
+            "Wechatpay-Serial": headers.get("wechatpay-serial", ""),
         }
-        result = self._client.callback(headers, json.dumps(task.parameters))
+        result = self._client.callback(wechat_headers, json.dumps(data))
         if result:
             return result["resource"]
         else:
-            raise ParamsInvalid("invalid callback")
+            raise HTTPException(status_code=400, detail="invalid callback")
 
-    def resolve_collect_callback(self, task: Task) -> Transaction:
-        """校验并解密支付回调通知的内容
+    def resolve_collect_callback(self, data: dict, headers: dict = None) -> Transaction:
+        """Verify and decrypt payment callback notification.
 
-        `微信支付文档 <https://pay.weixin.qq.com/docs/merchant/apis/mini-program-payment/payment-notice.html>`_
+        :param data: Callback request body
+        :param headers: HTTP headers from callback request
+        :return: Parsed transaction
+
+        `WeChat Docs <https://pay.weixin.qq.com/docs/merchant/apis/mini-program-payment/payment-notice.html>`_
         """
-        result = self._decrypt_callback(task)
+        headers = headers or {}
+        result = self._decrypt_callback(data, headers)
         return WechatCollectTransaction(**result).to_union()
 
-    def resolve_transfer_callback(self, task: Task) -> Transaction:
-        """校验并解密转账回调通知的内容
+    def resolve_transfer_callback(self, data: dict, headers: dict = None) -> Transaction:
+        """Verify and decrypt transfer callback notification.
 
-        `微信支付文档 <https://pay.weixin.qq.com/docs/merchant/apis/batch-transfer-to-balance/transfer-batch-callback-notice.html>`_
+        :param data: Callback request body
+        :param headers: HTTP headers from callback request
+        :return: Parsed transaction
+
+        `WeChat Docs <https://pay.weixin.qq.com/docs/merchant/apis/batch-transfer-to-balance/transfer-batch-callback-notice.html>`_
         """
-        result = self._decrypt_callback(task)
+        headers = headers or {}
+        result = self._decrypt_callback(data, headers)
         return WechatPaymentTransferTransaction(**result).to_union()
 
-    def resolve_refund_callback(self, task: Task) -> Transaction:
-        """校验并解密退款回调通知的内容
+    def resolve_refund_callback(self, data: dict, headers: dict = None) -> Transaction:
+        """Verify and decrypt refund callback notification.
 
-        `微信支付文档 <https://pay.weixin.qq.com/doc/v3/merchant/4013071196>`_
+        :param data: Callback request body
+        :param headers: HTTP headers from callback request
+        :return: Parsed transaction
+
+        `WeChat Docs <https://pay.weixin.qq.com/doc/v3/merchant/4013071196>`_
         """
-        result = self._decrypt_callback(task)
+        headers = headers or {}
+        result = self._decrypt_callback(data, headers)
         return WechatPaymentRefundTransaction(**result).to_union()
 
     @staticmethod

@@ -1,54 +1,55 @@
-"""信息流内容数据模型
-"""
+"""信息流内容数据模型 - SQLModel Database Models."""
+
+__all__ = [
+    "FeedContentItemRef",
+    "FeedContentItemType",
+    "FeedContentItem",
+]
 
 import enum
 import typing
-from blue_firmament.scheme import (
-    BusinessScheme
-)
-from blue_firmament.scheme.field import Field
+import sqlmodel
+from typing import Optional as Opt
+from pydantic import BaseModel
+
 from ..partner_request import PartnerRequestRef
 
-if typing.TYPE_CHECKING:
-    pass
 
+FeedContentItemRef: typing.TypeAlias = int
+"""信息流条目 ID"""
 
-T = typing.TypeVar('T')
 
 class FeedContentItemType(enum.Enum):
-    """信息流条目类型
-    """
-    
+    """信息流条目类型"""
+
     PARTNER_REQUEST = "partner_request"
     """搭子请求"""
 
-class FeedContentItemContent(Field[T], typing.Generic[T]):
-    """信息流条目内容"""
 
-class PRTypeContent(FeedContentItemContent[PartnerRequestRef]):
-    """搭子请求类型信息流条目内容
-    """
-    def __init__(self):
-        super().__init__()
-        self._set_converter_from_anno(PartnerRequestRef)
-
-
-FeedContentItemRef = typing.NewType('FeedContentItemRef', int)
-class FeedContentItem(BusinessScheme[FeedContentItemRef], key_type=FeedContentItemRef):
-
+class FeedContentItem(sqlmodel.SQLModel, table=True):
     """信息流条目
+
+    Database model for feed content items.
     """
 
-    __schema_name__ = "feed"
-    __table_name__ = "content_item"
+    __tablename__ = "content_item"  # type: ignore
+    __table_args__ = {"schema": "feed"}
 
-    type: FeedContentItemType
-    content: FeedContentItemContent
+    id: Opt[int] = sqlmodel.Field(default=None, primary_key=True)
+    type: str = sqlmodel.Field(default=FeedContentItemType.PARTNER_REQUEST.value)
+    """条目类型"""
+    content: Opt[str] = sqlmodel.Field(default=None)
+    """条目内容 (JSON)"""
 
 
-class PRTypeFeedContentItem(FeedContentItem):
-    """搭子请求类型信息流条目
-    """
-
+class FeedContentItemCreate(BaseModel):
+    """Create model for FeedContentItem."""
     type: FeedContentItemType = FeedContentItemType.PARTNER_REQUEST
-    content: PRTypeContent = PRTypeContent()
+    content: Opt[PartnerRequestRef] = None
+
+
+class FeedContentItemSimple(BaseModel):
+    """Simple representation of FeedContentItem."""
+    id: FeedContentItemRef
+    type: FeedContentItemType
+    content: Opt[PartnerRequestRef] = None
