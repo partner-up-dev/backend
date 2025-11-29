@@ -1,17 +1,7 @@
-"""消息模块管理器包
-"""
+"""消息模块管理器包"""
 
 __all__ = [
-    "BaseMessageManager",
-    "PlainMessageManager",
-    "ApprovalMessageManager",
+    "MessageManager",
 ]
 
-from .main import (
-    BaseMessageManager,
-    PlainMessageManager
-)
-
-from .approval import (
-    ApprovalMessageManager
-)
+from .main import MessageManager
