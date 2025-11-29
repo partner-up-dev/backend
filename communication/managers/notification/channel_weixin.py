@@ -1,129 +1,246 @@
-"""微信通知渠道模块"""
+"""微信通知渠道模块
 
-__all__ = []
+Business logic for WeChat notification channels using FastAPI patterns.
+"""
+
+__all__ = [
+    "WXMPSubMessageManager",
+    "WXSASubMessageManager",
+]
 
 import datetime
 import ssl
+import platform
 from typing import Optional as Opt
 import aiohttp
-import certifi
-from blue_firmament.exceptions import (
-    ExternalError,
-    RequestFailed,
-)
-from blue_firmament.utils.datetime_ import get_datetimez
+import structlog
 
+from fastapi import HTTPException
+
+from core.engine import SessionLocal
 from account.schemas.wxmp import WXMPAccount
-from dal import SupabaseServPostgrest
 
 from .main import NotificationChannelManager
 from ...schemas.notification import NotificationContent
-from libs.weixin import WXMP_MP_API, WXMP_SA_API
-from settings.wxmp import get_setting as get_weixin_setting
+from core.settings import get_settings
 
-AIOHTTP_CONNECTOR_GETTER = lambda: aiohttp.TCPConnector(
-    ssl=ssl.create_default_context(cafile=certifi.where())
-)
+
+# Platform-specific SSL configuration
+if platform.system() == "Darwin":
+    import certifi
+
+    AIOHTTP_CONNECTOR_GETTER = lambda: aiohttp.TCPConnector(
+        ssl=ssl.create_default_context(cafile=certifi.where())
+    )
+else:
+    AIOHTTP_CONNECTOR_GETTER = lambda: aiohttp.TCPConnector()
+
+
+logger = structlog.get_logger(__name__)
 
 
 class AccessToken:
     """微信开放平台 AccessToken
 
-    在 data.settings.weixin 中配置该结构
-    ```json
-    credentials = {
-      "<your app name>": {
-        "appid": "<your appid>",
-        "secret": "<your app secret>"
-      }
-    }
-    ```
+    用于管理微信 API 访问令牌。
     """
 
     URL = "https://api.weixin.qq.com/cgi-bin/token"
 
     def __init__(self, app_name: str) -> None:
         self.__app_name = app_name
-        self.__access_token = None
+        self.__access_token: Opt[str] = None
         self.__expire_at: Opt[datetime.datetime] = None
+        self._load_credentials()
+
+    def _load_credentials(self) -> None:
+        """Load credentials from settings."""
+        settings = get_settings()
+        if self.__app_name == "partner_up_wxmp":
+            self.__appid = settings.weixin.partner_up_wxmp_appid
+            self.__secret = settings.weixin.partner_up_wxmp_secret
+        elif self.__app_name == "partner_up_wxsa":
+            self.__appid = settings.weixin.partner_up_wxsa_appid
+            self.__secret = settings.weixin.partner_up_wxsa_secret
+        else:
+            raise ValueError(f"Unknown app name: {self.__app_name}")
 
     async def refresh(self):
-        self.__access_token, self.__expire_at = await self.__get_access_token(self.__app_name)
+        self.__access_token, self.__expire_at = await self.__get_access_token()
 
-    async def is_expired(self) -> bool:
+    def is_expired(self) -> bool:
         if self.__expire_at is None:
             return True
-        return get_datetimez() >= self.__expire_at
+        return datetime.datetime.now(datetime.timezone.utc) >= self.__expire_at
 
-    @classmethod
-    async def __get_access_token(cls, app_name: str) -> tuple[str, datetime.datetime]:
+    async def __get_access_token(self) -> tuple[str, datetime.datetime]:
         """获取 AccessToken
 
         :returns : access_token, expire_at
         """
-        app_setting = get_weixin_setting().credentials[app_name]
         params = {
             "grant_type": "client_credential",
-            "appid": app_setting["appid"],
-            "secret": app_setting["secret"],
+            "appid": self.__appid,
+            "secret": self.__secret,
         }
 
         async with aiohttp.ClientSession(connector=AIOHTTP_CONNECTOR_GETTER()) as session:
-            async with session.get(url=cls.URL, params=params) as res:
+            async with session.get(url=self.URL, params=params) as res:
                 if res.status == 200:
-                    res = await res.json()
-                    access_token = res.get("access_token", None)
+                    res_data = await res.json()
+                    access_token = res_data.get("access_token", None)
                     if access_token is None:
-                        raise ExternalError(
-                            "get_weixin_access_token",
-                            errcode=res.get("errcode", None),
-                            params=params,
+                        raise HTTPException(
+                            status_code=502,
+                            detail=f"Failed to get access token: {res_data.get('errcode')}"
                         )
                     else:
-                        return access_token, get_datetimez() + datetime.timedelta(
-                            seconds=res.get("expires_in", 7200)
-                        )
+                        return access_token, datetime.datetime.now(
+                            datetime.timezone.utc
+                        ) + datetime.timedelta(seconds=res_data.get("expires_in", 7200))
 
-                raise RequestFailed(res)
+                raise HTTPException(status_code=502, detail="Failed to get access token")
 
-    async def get_authenticated_url(self, url: str) -> str:
-        """为 URL 添加 AccessToken 参数"""
+    async def get_access_token(self) -> str:
+        """获取访问令牌字符串"""
         if self.__access_token is None or self.is_expired():
             await self.refresh()
         if self.__access_token is None:
             raise ValueError("AccessToken invalid")
-        return url + "?access_token=" + self.__access_token
+        return self.__access_token
 
 
-class WXMPSubMessageManager(NotificationChannelManager, manager_name="wxmp_sub_message"):
-    """微信小程序订阅消息渠道管理器"""
+class WXMPSubMessageManager(NotificationChannelManager):
+    """微信小程序订阅消息渠道管理器
 
-    def __post_init__(self) -> None:
-        self.api = WXMP_MP_API(self, "partner_up_wxmp")
+    Provides methods for sending subscription messages via WeChat Mini Program.
+    """
 
-    async def send(self, to_users: tuple[str, ...], content: NotificationContent):
+    SEND_URL = "https://api.weixin.qq.com/cgi-bin/message/subscribe/send"
+    _access_token: Opt[AccessToken] = None
+
+    @classmethod
+    def _get_access_token(cls) -> AccessToken:
+        """Get or create AccessToken instance."""
+        if cls._access_token is None:
+            cls._access_token = AccessToken("partner_up_wxmp")
+        return cls._access_token
+
+    @classmethod
+    def _get_openid(cls, user_id: str) -> Opt[str]:
+        """Get WeChat OpenID for a user."""
+        with SessionLocal() as db:
+            wxmp_account = db.get(WXMPAccount, user_id)
+            if wxmp_account:
+                return wxmp_account.weixin_mp_openid
+            return None
+
+    @classmethod
+    async def send(cls, to_users: tuple[str, ...], content: NotificationContent) -> None:
+        """发送微信小程序订阅消息
+
+        :param to_users: 目标用户 ID 列表
+        :param content: 通知内容
+        """
+        token_manager = cls._get_access_token()
+        access_token = await token_manager.get_access_token()
+
         for to_user in to_users:
-            to_openid = await SupabaseServPostgrest().select_one(
-                WXMPAccount.weixin_mp_openid, to_user
-            )
+            to_openid = cls._get_openid(to_user)
             if to_openid:
-                await self.api.send_sub_message(to_openid, dict(content.to_wxmp_submessage()))
+                msg_content = content.to_wxmp_submessage()
+                await cls._send_message(access_token, to_openid, msg_content)
             else:
-                self._logger.warning("to_user don't has wxmp_openid", to_user=to_user)
+                logger.warning("to_user doesn't have wxmp_openid", to_user=to_user)
+
+    @classmethod
+    async def _send_message(cls, access_token: str, to_openid: str, content: dict) -> None:
+        """Send subscription message to a specific user."""
+        url = f"{cls.SEND_URL}?access_token={access_token}"
+        payload = {
+            "touser": to_openid,
+            "template_id": content["template_id"],
+            "data": content["data"],
+        }
+        if "page" in content:
+            payload["page"] = content["page"]
+
+        async with aiohttp.ClientSession(connector=AIOHTTP_CONNECTOR_GETTER()) as session:
+            async with session.post(url, json=payload) as res:
+                res_data = await res.json()
+                errcode = res_data.get("errcode", 0)
+                if errcode != 0:
+                    logger.error(
+                        "Failed to send subscription message",
+                        errcode=errcode,
+                        errmsg=res_data.get("errmsg"),
+                        to_openid=to_openid,
+                    )
 
 
-class WXSASubMessageManager(NotificationChannelManager, manager_name="wxsa_sub_message"):
-    """微信服务号订阅消息渠道管理器"""
+class WXSASubMessageManager(NotificationChannelManager):
+    """微信服务号订阅消息渠道管理器
 
-    def __post_init__(self) -> None:
-        self.api = WXMP_SA_API(self, "partner_up_wxsa")
+    Provides methods for sending subscription messages via WeChat Service Account.
+    """
 
-    async def send(self, to_users: tuple[str, ...], content: NotificationContent):
+    SEND_URL = "https://api.weixin.qq.com/cgi-bin/message/template/subscribe"
+    _access_token: Opt[AccessToken] = None
+
+    @classmethod
+    def _get_access_token(cls) -> AccessToken:
+        """Get or create AccessToken instance."""
+        if cls._access_token is None:
+            cls._access_token = AccessToken("partner_up_wxsa")
+        return cls._access_token
+
+    @classmethod
+    def _get_openid(cls, user_id: str) -> Opt[str]:
+        """Get WeChat Service Account OpenID for a user."""
+        with SessionLocal() as db:
+            wxmp_account = db.get(WXMPAccount, user_id)
+            if wxmp_account:
+                return wxmp_account.weixin_sa_openid
+            return None
+
+    @classmethod
+    async def send(cls, to_users: tuple[str, ...], content: NotificationContent) -> None:
+        """发送微信服务号订阅消息
+
+        :param to_users: 目标用户 ID 列表
+        :param content: 通知内容
+        """
+        token_manager = cls._get_access_token()
+        access_token = await token_manager.get_access_token()
+
         for to_user in to_users:
-            to_openid = await SupabaseServPostgrest().select_one(
-                WXMPAccount.weixin_sa_openid, to_user
-            )
+            to_openid = cls._get_openid(to_user)
             if to_openid:
-                await self.api.send_sub_message(to_openid, dict(content.to_wxsa_submessage()))
+                msg_content = content.to_wxsa_submessage()
+                await cls._send_message(access_token, to_openid, msg_content)
             else:
-                self._logger.warning("to_user don't has wxsa_openid", to_user=to_user)
+                logger.warning("to_user doesn't have wxsa_openid", to_user=to_user)
+
+    @classmethod
+    async def _send_message(cls, access_token: str, to_openid: str, content: dict) -> None:
+        """Send subscription message to a specific user."""
+        url = f"{cls.SEND_URL}?access_token={access_token}"
+        payload = {
+            "touser": to_openid,
+            "template_id": content["template_id"],
+            "data": content["data"],
+        }
+        if "page" in content:
+            payload["page"] = content["page"]
+
+        async with aiohttp.ClientSession(connector=AIOHTTP_CONNECTOR_GETTER()) as session:
+            async with session.post(url, json=payload) as res:
+                res_data = await res.json()
+                errcode = res_data.get("errcode", 0)
+                if errcode != 0:
+                    logger.error(
+                        "Failed to send subscription message",
+                        errcode=errcode,
+                        errmsg=res_data.get("errmsg"),
+                        to_openid=to_openid,
+                    )

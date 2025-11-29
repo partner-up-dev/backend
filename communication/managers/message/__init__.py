@@ -2,6 +2,8 @@
 
 __all__ = [
     "MessageManager",
+    "ApprovalMessageManager",
 ]
 
 from .main import MessageManager
+from .approval import ApprovalMessageManager
