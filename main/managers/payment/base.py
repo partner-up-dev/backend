@@ -1,5 +1,7 @@
 """支付管理器基础
 
+Business logic for payment operations using FastAPI patterns.
+
 :author: Lan_zhijiang<lanzhijiang@hadream.ltd>
 """
 
@@ -10,9 +12,6 @@ import datetime
 import typing
 from typing import Optional as Opt
 
-from blue_firmament.manager import BaseManager
-from blue_firmament.task import Task
-from blue_firmament.task.context import BaseTaskContext
 from account.schemas import AccountRef
 from ...schemas.base import Currency
 from ...schemas.payment.base import PaymentPlatform, Transaction
@@ -29,7 +28,7 @@ A subclass of BasePaymentManager
 """
 
 
-class BasePaymentManager(BaseManager, abc.ABC):
+class BasePaymentManager(abc.ABC):
     """支付管理器基类
 
     - 所有金额为整型，以分为单位
@@ -75,28 +74,23 @@ class BasePaymentManager(BaseManager, abc.ABC):
         return super().__init_subclass__(**kwargs)
 
     @classmethod
-    def get(cls, btc: BaseTaskContext, client_id: Opt[str] = None) -> typing.Self:
-        """
+    def get(cls, client_id: Opt[str] = None) -> typing.Self:
+        """Get payment manager instance for a client.
 
-        :param btc: 基本任务上下文
-        :type btc: BaseTaskContext
-        :param client_id: 客户端 ID，缺省时从上下文获取
+        :param client_id: 客户端 ID
         :type client_id: str
         :raises TypeError: 没有可以服务该客户端的支付管理器
         :return: 支付管理器实例
         """
-        if not client_id:
-            client_id = btc._task.metadata.client_id
         for i in cls.__registry__:
             if client_id in i[0]:
-                return i[1](btc)
+                return i[1]()
         raise TypeError(
-            f"No payment manager for client {client_id}\
-                        was found in {cls.__platform__}"
+            f"No payment manager for client {client_id} was found in {cls.__platform__}"
         )
 
     @classmethod
-    def get_by_id(cls, _id: Opt[str], tc: BaseTaskContext) -> typing.Self:
+    def get_by_id(cls, _id: Opt[str]) -> typing.Self:
         """通过ID获取支付管理器
 
         :param _id: 支付管理器ID（None 则选择第一个）
@@ -105,10 +99,10 @@ class BasePaymentManager(BaseManager, abc.ABC):
         :return: 支付管理器实例
         """
         if _id is None:
-            return cls.__registry__[0][1](tc)
+            return cls.__registry__[0][1]()
         for i in cls.__registry__:
             if _id == i[1].__id__:
-                return i[1](tc)
+                return i[1]()
         raise KeyError("No such payment manager")
 
     @property
@@ -196,16 +190,13 @@ class BasePaymentManager(BaseManager, abc.ABC):
         """获取前端用于调起支付的签名"""
 
     @abc.abstractmethod
-    def resolve_collect_callback(self, task: Task) -> Transaction:
+    def resolve_collect_callback(self, data: dict) -> Transaction:
         """解析收款回调通知"""
 
     @abc.abstractmethod
-    def resolve_transfer_callback(self, task: Task) -> Transaction:
-        """解析转账回调通知
-
-        TODO 保障回调解析错误时的任务返回符合支付平台要求
-        """
+    def resolve_transfer_callback(self, data: dict) -> Transaction:
+        """解析转账回调通知"""
 
     @abc.abstractmethod
-    def resolve_refund_callback(self, task: Task) -> Transaction:
+    def resolve_refund_callback(self, data: dict) -> Transaction:
         """解析退款回调通知"""
