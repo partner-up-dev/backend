@@ -115,7 +115,8 @@ class WechatPaymentManager(
         :param cert_dir: 证书存放的文件夹
         :type cert_dir: str
         """
-        pri_key = open(pri_key_path, "r").read()
+        with open(pri_key_path, "r") as f:
+            pri_key = f.read()
         cls.__client__ = WechatPayClient(
             wechatpay_type=paytype,
             appid=appid,
@@ -314,7 +315,13 @@ class WechatPaymentManager(
         )
 
     def _decrypt_callback(self, data: dict, headers: dict) -> dict:
-        """校验并解密微信回调通知的内容"""
+        """Verify and decrypt WeChat callback notification content.
+
+        :param data: Callback request body as dictionary
+        :param headers: HTTP headers from the callback request
+        :return: Decrypted resource content
+        :raises HTTPException: If callback verification fails
+        """
         wechat_headers = {
             "Wechatpay-Signature": headers.get("wechatpay-signature", ""),
             "Wechatpay-Timestamp": headers.get("wechatpay-timestamp", ""),
@@ -328,27 +335,39 @@ class WechatPaymentManager(
             raise HTTPException(status_code=400, detail="invalid callback")
 
     def resolve_collect_callback(self, data: dict, headers: dict = None) -> Transaction:
-        """校验并解密支付回调通知的内容
+        """Verify and decrypt payment callback notification.
 
-        `微信支付文档 <https://pay.weixin.qq.com/docs/merchant/apis/mini-program-payment/payment-notice.html>`_
+        :param data: Callback request body
+        :param headers: HTTP headers from callback request
+        :return: Parsed transaction
+
+        `WeChat Docs <https://pay.weixin.qq.com/docs/merchant/apis/mini-program-payment/payment-notice.html>`_
         """
         headers = headers or {}
         result = self._decrypt_callback(data, headers)
         return WechatCollectTransaction(**result).to_union()
 
     def resolve_transfer_callback(self, data: dict, headers: dict = None) -> Transaction:
-        """校验并解密转账回调通知的内容
+        """Verify and decrypt transfer callback notification.
 
-        `微信支付文档 <https://pay.weixin.qq.com/docs/merchant/apis/batch-transfer-to-balance/transfer-batch-callback-notice.html>`_
+        :param data: Callback request body
+        :param headers: HTTP headers from callback request
+        :return: Parsed transaction
+
+        `WeChat Docs <https://pay.weixin.qq.com/docs/merchant/apis/batch-transfer-to-balance/transfer-batch-callback-notice.html>`_
         """
         headers = headers or {}
         result = self._decrypt_callback(data, headers)
         return WechatPaymentTransferTransaction(**result).to_union()
 
     def resolve_refund_callback(self, data: dict, headers: dict = None) -> Transaction:
-        """校验并解密退款回调通知的内容
+        """Verify and decrypt refund callback notification.
 
-        `微信支付文档 <https://pay.weixin.qq.com/doc/v3/merchant/4013071196>`_
+        :param data: Callback request body
+        :param headers: HTTP headers from callback request
+        :return: Parsed transaction
+
+        `WeChat Docs <https://pay.weixin.qq.com/doc/v3/merchant/4013071196>`_
         """
         headers = headers or {}
         result = self._decrypt_callback(data, headers)

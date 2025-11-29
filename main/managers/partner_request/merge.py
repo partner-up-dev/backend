@@ -10,6 +10,7 @@ __all__ = [
     "PRMergeResultNotification",
 ]
 
+import json
 import structlog
 from typing import Optional as Opt
 
@@ -31,6 +32,21 @@ from communication.schemas.notification import (
 
 
 logger = structlog.get_logger(__name__)
+
+
+def _parse_froms_json(froms_str: Opt[str]) -> list[int]:
+    """Parse the froms JSON string safely.
+
+    :param froms_str: JSON string containing list of partner request IDs
+    :return: List of partner request IDs, empty list if parsing fails
+    """
+    if not froms_str:
+        return []
+    try:
+        return json.loads(froms_str)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Failed to parse froms JSON", froms=froms_str)
+        return []
 
 
 class PRMergeSubmitNotification(NotificationContent):
@@ -137,12 +153,11 @@ class PRMergeRequestManager:
         :param mr: Merge request
         :return: Account ID of the other PR creator
         """
-        import json
+        froms = _parse_froms_json(mr.froms)
+        if len(froms) < 2:
+            return None
 
         with SessionLocal() as db:
-            froms = json.loads(mr.froms) if mr.froms else []
-            if len(froms) < 2:
-                return None
             pr = db.get(PartnerRequest, froms[1])
             return pr.created_by if pr else None
 
