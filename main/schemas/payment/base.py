@@ -10,7 +10,7 @@ __all__ = [
 import datetime
 import enum
 from typing import Optional as Opt
-from blue_firmament.scheme import BaseScheme
+from pydantic import BaseModel
 from ..base import Currency
 
 
@@ -23,7 +23,7 @@ class TransactionStatus(enum.Enum):
     REFUNDED = "refunded"
     NOT_PAID = "not_paid"
     CANCELLED = "cancelled"
-    REVOKED = "revoked" # TODO 和cancel有啥区别呢？
+    REVOKED = "revoked"  # TODO 和cancel有啥区别呢？
     IN_PROGRESS = "in_progress"
     ERROR = "error"
 
@@ -36,8 +36,12 @@ class TransactionType(enum.Enum):
     TRANSFER = "transfer"
     """转账"""
 
+    PAYMENT = "payment"
+    """支付"""
 
-class Transaction(BaseScheme):
+
+class Transaction(BaseModel):
+    """Transaction data model."""
 
     id: str
     type: TransactionType = TransactionType.COLLECT
@@ -50,6 +54,7 @@ class Transaction(BaseScheme):
 
     def is_success(self) -> bool:
         return self.status in (TransactionStatus.SUCCESS,)
+
     def is_failed(self) -> bool:
         return self.status in (TransactionStatus.ERROR,)
 

@@ -4,9 +4,7 @@
 import enum
 import datetime
 from typing import Optional as Opt
-from blue_firmament.scheme import (
-    BaseScheme, FieldT, field
-)
+from pydantic import BaseModel
 from .base import PaymentPlatform
 
 
@@ -18,22 +16,19 @@ class WalletIssuer(enum.Enum):
     CCB = "ccb"
 
 
-class Wallet(BaseScheme):
+class Wallet(BaseModel):
     """钱包
     """
 
-    __schema_name__ = "payment"
-    __table_name__ = "wallet"
-
     type: PaymentPlatform
     """钱包类型，也即支付平台"""
-    owned_by: FieldT[str]
+    owned_by: str
     """所有者"""
     issuer: WalletIssuer
     """发行商"""
-    makeable: FieldT[bool] = field(default=True)
+    makeable: bool = True
     """可支付"""
-    receivable: FieldT[bool] = field(default=True)
+    receivable: bool = True
     """可收款"""
     card_no: Opt[str] = None
     """卡号，按类型需要填写"""

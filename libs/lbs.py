@@ -1,10 +1,10 @@
 import aiohttp
 import typing
+import structlog
 from typing import Literal as Lit
-from blue_firmament.log import get_logger
 from settings.lbs import get_setting
 
-LOGGER = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 BATCH_DISTANCE_MATRIX_URL = "https://apis.map.qq.com/ws/distance/v1/matrix"
 
 

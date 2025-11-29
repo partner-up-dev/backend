@@ -7,7 +7,7 @@ import typing
 from typing import Optional as Opt, Literal as Lit
 from ..base import Currency
 from .base import PaymentPlatform, TransactionStatus, TransactionType, Transaction
-from blue_firmament.scheme import BaseScheme
+from pydantic import BaseModel
 
 
 class WechatProductType(enum.Enum):
@@ -60,14 +60,14 @@ class WechatCollectState(enum.Enum):
         else:
             raise ValueError("Invalid trade state")
 
-class WechatPaymentAmount(BaseScheme):
+class WechatPaymentAmount(BaseModel):
 
     total: int
     currency: Currency
     payer_total: int
     payer_currency: Currency
 
-class WechatCollectTransaction(BaseScheme, proxy=False):
+class WechatCollectTransaction(BaseModel):
 
     """微信支付收款订单
     """
@@ -123,7 +123,7 @@ class WechatPaymentTransferStatus(enum.Enum):
         else:
             return TransactionStatus.IN_PROGRESS 
 
-class WechatPaymentTransferTransaction(BaseScheme, proxy=False):
+class WechatPaymentTransferTransaction(BaseModel):
 
     """微信支付转账订单
     """
@@ -182,7 +182,7 @@ class WechatPaymentRefundStatus(enum.Enum):
         raise ValueError("unknown status")
 
 
-class WechatPaymentRefundTransaction(BaseScheme, proxy=False):
+class WechatPaymentRefundTransaction(BaseModel):
     """微信支付退款订单
     """
     mchid: str
@@ -221,14 +221,14 @@ class CallbackResouceAlgorithm(enum.Enum):
 class CallbackResourceOriginalType(enum.Enum):
     TRANSACTION = "transaction"
 
-class Resource(BaseScheme):
+class Resource(BaseModel):
     algorithm: CallbackResouceAlgorithm
     associated_data: str
     ciphertext: str
     nonce: str
     original_type: CallbackResourceOriginalType
 
-class WechatPaymentCallbackBody(BaseScheme):
+class WechatPaymentCallbackBody(BaseModel):
 
     create_time: datetime.datetime
     event_type: CallbackEventType
