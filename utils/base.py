@@ -1,3 +1,4 @@
+import datetime
 import random
 import string
 
@@ -17,3 +18,11 @@ def cent_to_yuan(cent: int | None) -> int:
 def generate_random_string(length=6):
     characters = string.ascii_letters + string.digits
     return "".join(random.choice(characters) for _ in range(length))
+
+
+def get_utc_now() -> datetime.datetime:
+    """Get current UTC datetime.
+
+    Use this as the default_factory for SQLModel datetime fields.
+    """
+    return datetime.datetime.now(datetime.timezone.utc)
