@@ -21,11 +21,13 @@ _ENV_FILE = os.getenv("ENV_FILE", "/run/secrets/.env")
 
 class DatabaseSettings(BaseModel):
     """Database configuration."""
+
     url: str = ""
 
 
 class RedisSettings(BaseModel):
     """Redis configuration."""
+
     host: str = "localhost"
     port: int = 6379
     password: str = ""
@@ -34,6 +36,7 @@ class RedisSettings(BaseModel):
 
 class AuthSettings(BaseModel):
     """Authentication / JWT configuration."""
+
     jwt_secret_key: str = ""
     jwt_algorithms: list[str] = ["HS256"]
     jwt_allowed_audiences: tuple[str, ...] = ("authenticated", "anon", "service_role")
@@ -41,6 +44,7 @@ class AuthSettings(BaseModel):
 
 class HttpSettings(BaseModel):
     """HTTP Server configuration."""
+
     host: str = "0.0.0.0"
     port: int = 8000
     real_host: str = "localhost"
@@ -48,6 +52,7 @@ class HttpSettings(BaseModel):
 
 class SupabaseSettings(BaseModel):
     """Supabase configuration."""
+
     url: str = ""
     serv_key: str = ""
     anon_key: str = ""
@@ -59,6 +64,7 @@ class WeixinSettings(BaseModel):
     The partner_up_wxmp_appid has a default value for backwards compatibility,
     but should be set via environment variables for different environments.
     """
+
     partner_up_wxmp_appid: str = ""
     partner_up_wxmp_secret: str = ""
     partner_up_wxsa_appid: str = ""
@@ -67,6 +73,7 @@ class WeixinSettings(BaseModel):
 
 class WechatPaySettings(BaseModel):
     """WeChat Pay configuration."""
+
     mchid: str = ""
     pri_key_path: str = ""
     serial_no: str = ""
@@ -77,6 +84,7 @@ class WechatPaySettings(BaseModel):
 
 class LbsSettings(BaseModel):
     """Location-Based Services configuration."""
+
     apikey: str = ""
 
 

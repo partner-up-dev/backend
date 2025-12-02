@@ -13,6 +13,7 @@ __all__ = [
 
 import typing
 import enum
+import sqlalchemy
 import sqlmodel
 from typing import Optional as Opt
 from pydantic import BaseModel
@@ -27,12 +28,14 @@ LocationRef: typing.TypeAlias = str
 
 class Gender(enum.Enum):
     """性别枚举"""
+
     MALE = "male"
     FEMALE = "female"
 
 
 class MBTI(enum.Enum):
     """MBTI性格枚举"""
+
     ISTJ = "ISTJ"
     ISFJ = "ISFJ"
     INFJ = "INFJ"
@@ -53,11 +56,12 @@ class MBTI(enum.Enum):
 
 class GeoProfile(sqlmodel.SQLModel, table=True):
     """帐号地理资料"""
+
     __tablename__ = "geo_profile"  # type: ignore
     __table_args__ = {"schema": "account"}
 
     id: AccountRef = sqlmodel.Field(
-        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+        sa_column=sqlalchemy.Column(sqlalchemy.UUID, primary_key=True),
     )
     workplace: Opt[LocationRef] = sqlmodel.Field(default=None)
     """工作地址"""
@@ -71,11 +75,12 @@ NICKNAME_MIN_LENGTH = 1
 
 class BaseProfile(sqlmodel.SQLModel, table=True):
     """账号基础资料"""
+
     __tablename__ = "base_profile"  # type: ignore
     __table_args__ = {"schema": "account"}
 
     id: AccountRef = sqlmodel.Field(
-        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+        sa_column=sqlalchemy.Column(sqlalchemy.UUID, primary_key=True),
     )
     nickname: str = sqlmodel.Field(default_factory=generate_random_string)
     avatar: Opt[str] = sqlmodel.Field(default=None)
@@ -99,6 +104,7 @@ class BaseProfile(sqlmodel.SQLModel, table=True):
 
 class BaseProfileEditable(BaseModel):
     """Editable fields for BaseProfile."""
+
     nickname: Opt[str] = None
     avatar: Opt[str] = None
     wallpaper: Opt[str] = None
@@ -110,11 +116,12 @@ class BaseProfileEditable(BaseModel):
 
 class AccountConfig(sqlmodel.SQLModel, table=True):
     """账号配置"""
+
     __tablename__ = "config"  # type: ignore
     __table_args__ = {"schema": "account"}
 
     id: AccountRef = sqlmodel.Field(
-        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+        sa_column=sqlalchemy.Column(sqlalchemy.UUID, primary_key=True),
     )
     public_profile_fields: Opt[str] = sqlmodel.Field(default=None)  # JSON array
     """公开的资料字段
@@ -130,6 +137,7 @@ class AccountConfig(sqlmodel.SQLModel, table=True):
             非公开字段不会被设置
         """
         import json
+
         if self.public_profile_fields is None:
             return base_profile
 
@@ -150,6 +158,7 @@ class AccountConfig(sqlmodel.SQLModel, table=True):
 
 class AccountProfileSimple(BaseModel):
     """账号简易展示数据模型"""
+
     id: AccountRef
     nickname: Opt[str] = None
     avatar: Opt[str] = None

@@ -1,10 +1,4 @@
-"""出行搭子请求数据模型
-"""
+"""出行搭子请求数据模型"""
 
-
-from .ride_hailing import (
-    RideHailingPartnerRequest
-)
-from .commute import (
-    CommutePartnerRequest
-)
+from .commute import CommutePRContent
+from .ride_hailing import RideHailingPRContent

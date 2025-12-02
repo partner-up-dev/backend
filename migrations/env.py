@@ -3,6 +3,10 @@
 from logging.config import fileConfig
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
@@ -20,11 +24,9 @@ if config.config_file_name is not None:
 from core.schemas import Base
 
 # Import all models for Alembic to detect
-from account.schemas import BaseProfile, GeoProfile, AccountConfig, MyLists, WXMPAccount
-from main.schemas.partner_request import PartnerRequest, Partner
-from main.schemas.base.route import Location
-from communication.schemas.chat import Chat
-from communication.schemas.message import Message
+import account.schemas
+import main.schemas
+import communication.schemas
 
 target_metadata = Base.metadata
 
@@ -40,7 +42,7 @@ def run_migrations_offline() -> None:
     Calls to context.execute() here emit the given string to the
     script output.
     """
-    url = os.environ.get("DATABASE_URL", "")
+    url = os.environ.get("DATABASE__URL", "")
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -60,7 +62,7 @@ def run_migrations_online() -> None:
     """
     connectable = engine_from_config(
         {
-            "sqlalchemy.url": os.environ.get("DATABASE_URL", ""),
+            "sqlalchemy.url": os.environ.get("DATABASE__URL", ""),
         },
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,

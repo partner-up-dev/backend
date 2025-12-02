@@ -38,8 +38,9 @@ ChatRef: typing.TypeAlias = int
 
 class Chat(sqlmodel.SQLModel, table=True):
     """聊天数据模型"""
+
     __tablename__ = "chat"  # type: ignore
-    __table_args__ = {"schema": "base"}
+    __table_args__ = {"schema": "communication"}
 
     id: Opt[ChatRef] = sqlmodel.Field(
         sa_column=sqlmodel.Column(sqlmodel.Integer, primary_key=True, autoincrement=True),

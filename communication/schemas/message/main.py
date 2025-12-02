@@ -42,8 +42,9 @@ MessageRef = NewType("MessageRef", int)
 
 class Message(sqlmodel.SQLModel, table=True):
     """消息数据模型"""
+
     __tablename__ = "message"  # type: ignore
-    __table_args__ = {"schema": "chat"}
+    __table_args__ = {"schema": "communication"}
 
     id: Opt[int] = sqlmodel.Field(
         sa_column=sqlmodel.Column(sqlmodel.Integer, primary_key=True, autoincrement=True),
@@ -70,15 +71,14 @@ class Message(sqlmodel.SQLModel, table=True):
     """回复至"""
     type: str = sqlmodel.Field(
         default=MessageType.PLAIN.value,
-        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False),
     )
     """消息类型"""
-    content: str = sqlmodel.Field(
-        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
-    )
+    content: str = sqlmodel.Field(sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False))
 
 
 class MessageEditable(BaseModel):
     """Editable fields for Message."""
+
     type: Opt[MessageType] = None
     content: Opt[str] = None

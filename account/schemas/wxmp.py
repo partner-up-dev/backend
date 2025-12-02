@@ -2,6 +2,7 @@
 
 import enum
 import sqlmodel
+import sqlalchemy
 from typing import Optional as Opt
 from .account import AccountRef
 
@@ -17,11 +18,12 @@ class WXMPClientType(enum.Enum):
 
 class WXMPAccount(sqlmodel.SQLModel, table=True):
     """微信公众平台帐号"""
+
     __tablename__ = "wxmp"  # type: ignore
     __table_args__ = {"schema": "account"}
 
     id: AccountRef = sqlmodel.Field(
-        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+        sa_column=sqlalchemy.Column(sqlalchemy.UUID, primary_key=True),
     )
     weixin_mp_openid: Opt[str] = sqlmodel.Field(default=None)
     """微信小程序OPENID"""

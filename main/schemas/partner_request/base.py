@@ -126,12 +126,12 @@ class PartnerRequestListType(enum.Enum):
 
 class PartnerRequest(sqlmodel.SQLModel, table=True):
     """Partner request database model."""
-    __tablename__ = "partner_request"  # type: ignore
-    __table_args__ = {"schema": "base"}
 
-    id: Opt[PartnerRequestRef] = sqlmodel.Field(
+    __tablename__ = "base"  # type: ignore
+    __table_args__ = {"schema": "partner_request"}
+
+    id: PartnerRequestRef = sqlmodel.Field(
         sa_column=sqlmodel.Column(sqlmodel.Integer, primary_key=True, autoincrement=True),
-        default=None,
     )
     type: str = sqlmodel.Field(sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False))
     """搭子请求类型"""
@@ -175,10 +175,12 @@ class PartnerRequest(sqlmodel.SQLModel, table=True):
 
 class PRTypedContent(BaseModel):
     """搭子请求类型特有内容"""
+
     id: PartnerRequestRef
 
 
 class PartnerRequestEditable(BaseModel):
     """Editable fields for PartnerRequest."""
+
     title: Opt[str] = None
     introduction: Opt[str] = None

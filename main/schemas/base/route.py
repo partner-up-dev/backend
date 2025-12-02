@@ -20,11 +20,12 @@ LocationRef: typing.TypeAlias = str
 
 class Location(sqlmodel.SQLModel, table=True):
     """Location database model."""
+
     __tablename__ = "location"  # type: ignore
     __table_args__ = {"schema": "public"}
 
     id: LocationRef = sqlmodel.Field(
-        sa_column=sqlmodel.Column(sqlmodel.String, primary_key=True),
+        sa_column=sqlmodel.Column(sqlmodel.TEXT, primary_key=True),
     )
     friendly_address: str = sqlmodel.Field(
         sa_column=sqlalchemy.Column(sqlalchemy.String(64), nullable=False)
@@ -32,16 +33,13 @@ class Location(sqlmodel.SQLModel, table=True):
     address: str = sqlmodel.Field(
         sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
     )  # JSON list[str]
-    lat: float = sqlmodel.Field(
-        sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False)
-    )
-    lng: float = sqlmodel.Field(
-        sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False)
-    )
+    lat: float = sqlmodel.Field(sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False))
+    lng: float = sqlmodel.Field(sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False))
 
 
 class RouteItemDatetime(BaseModel):
     """Route item datetime model."""
+
     datetime: Opt[datetime_.datetime] = None
     time: Opt[datetime_.time] = None
     bring_ahead: Opt[int] = None
@@ -60,5 +58,6 @@ class RouteItemDatetime(BaseModel):
 
 class RouteItem(BaseModel):
     """Route item model."""
+
     datetime: RouteItemDatetime
     location: LocationRef

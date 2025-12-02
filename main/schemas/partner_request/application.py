@@ -71,6 +71,7 @@ PartnerApplicationRef = NewType("PartnerApplicationRef", int)
 
 class PartnerApplication(sqlmodel.SQLModel, table=True):
     """搭子申请数据模型"""
+
     __tablename__ = "application"  # type: ignore
     __table_args__ = {"schema": "partner_request"}
 
@@ -91,11 +92,13 @@ class PartnerApplication(sqlmodel.SQLModel, table=True):
     )
     """所属搭子请求"""
     applicant: AccountRef = sqlmodel.Field(
-        sa_column=sqlalchemy.Column(sqlalchemy.String, nullable=False)
+        sa_column=sqlalchemy.Column(sqlalchemy.TEXT, nullable=False)
     )
     chat: ChatRef = sqlmodel.Field(
         sa_column=sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
     )
     eclose_reason: Opt[str] = sqlmodel.Field(default=None)
     """撤回或驳回的理由"""
-    sub_applications: Opt[str] = sqlmodel.Field(default=None)  # JSON array of SubPartnerApplication
+    sub_applications: Opt[str] = sqlmodel.Field(
+        default=None
+    )  # JSON array of SubPartnerApplication
