@@ -47,8 +47,8 @@ def create_app() -> fastapi.FastAPI:
     from communication.routes import router as communication_router
     from account.routes import router as account_router
 
-    app.include_router(main_router, prefix="/main", tags=["main"])
-    app.include_router(communication_router, prefix="/communication", tags=["communication"])
+    app.include_router(main_router, tags=["main"])
+    app.include_router(communication_router, prefix="/com", tags=["communication"])
     app.include_router(account_router, prefix="/account", tags=["account"])
 
     return app

@@ -165,8 +165,8 @@ def upgrade() -> None:
     op.create_table(
         "location",
         sa.Column("id", sa.TEXT(), nullable=False),
-        sa.Column("friendly_address", sa.String(length=64), nullable=False),
-        sa.Column("address", sa.Text(), nullable=False),
+        sa.Column("friendly_address", sa.Text(), nullable=False),
+        sa.Column("address", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("lat", sa.Float(), nullable=False),
         sa.Column("lng", sa.Float(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -241,6 +241,11 @@ def upgrade() -> None:
         schema="partner_request",
     )
     # ### end Alembic commands ###
+
+    # create roles and grant
+    op.execute("CREATE ROLE IF NOT EXISTS anonymous;")
+    op.execute("GRANT USAGE ON SCHEMA public TO anonymous;")
+    op.execute("GRANT SELECT ON public.location TO anonymous;")
 
 
 def downgrade() -> None:

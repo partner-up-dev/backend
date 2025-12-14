@@ -10,6 +10,8 @@ __all__ = [
 import typing
 from typing import Optional as Opt
 import datetime as datetime_
+import sqlalchemy.dialects
+import sqlalchemy.dialects.postgresql
 import sqlmodel
 import sqlalchemy
 from pydantic import BaseModel
@@ -27,11 +29,15 @@ class Location(sqlmodel.SQLModel, table=True):
     id: LocationRef = sqlmodel.Field(
         sa_column=sqlmodel.Column(sqlmodel.TEXT, primary_key=True),
     )
+    """location id
+    
+    =md5(lat,lng)
+    """
     friendly_address: str = sqlmodel.Field(
-        sa_column=sqlalchemy.Column(sqlalchemy.String(64), nullable=False)
+        sa_column=sqlalchemy.Column(sqlmodel.TEXT, nullable=False)
     )  # max 16
     address: str = sqlmodel.Field(
-        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+        sa_column=sqlalchemy.Column(sqlalchemy.dialects.postgresql.JSONB, nullable=False)
     )  # JSON list[str]
     lat: float = sqlmodel.Field(sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False))
     lng: float = sqlmodel.Field(sa_column=sqlalchemy.Column(sqlalchemy.Float, nullable=False))
