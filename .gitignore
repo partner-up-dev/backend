@@ -10,6 +10,7 @@ __pycache__/*
 
 logs/*
 scripts/*
+!scripts/generate_openapi.py
 *.log
 *.local.json
 data/json/*

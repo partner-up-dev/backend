@@ -1,0 +1,40 @@
+name: Generate OpenAPI Documentation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - fastapi
+
+jobs:
+  generate-openapi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PDM
+        run: pip install pdm
+
+      - name: Install dependencies
+        run: pdm install --no-self
+
+      - name: Generate OpenAPI JSON
+        run: pdm run python scripts/generate_openapi.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/openapi.json
+          git diff --staged --quiet || git commit -m "chore: update OpenAPI documentation [skip ci]"
+          git push

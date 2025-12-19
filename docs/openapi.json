@@ -1,0 +1,1115 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PartnerUp Backend",
+    "version": "0.4.0"
+  },
+  "paths": {
+    "/heartbeat": {
+      "get": {
+        "summary": "Heartbeat",
+        "operationId": "heartbeat_heartbeat_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/partner_request/list/{list_type}": {
+      "get": {
+        "tags": [
+          "main"
+        ],
+        "summary": "Get Partner Request List",
+        "description": "Get a list of partner requests.\n\nFilters partner requests by list type for the authenticated user.",
+        "operationId": "get_partner_request_list_partner_request_list__list_type__get",
+        "parameters": [
+          {
+            "name": "list_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PartnerRequestListType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "title": "Response Get Partner Request List Partner Request List  List Type  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/partner_request/{pr_id}/publish": {
+      "put": {
+        "tags": [
+          "main"
+        ],
+        "summary": "Publish Partner Request",
+        "description": "Publish a partner request.\n\nChanges status from DRAFT to JOINABLE.\nOnly the admin (creator) can publish.",
+        "operationId": "publish_partner_request_partner_request__pr_id__publish_put",
+        "parameters": [
+          {
+            "name": "pr_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pr Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerRequest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/partner_request/{pr_id}/cancel": {
+      "put": {
+        "tags": [
+          "main"
+        ],
+        "summary": "Cancel Partner Request",
+        "description": "Cancel a partner request.\n\nChanges status to CANCELLED.\nOnly the admin (creator) can cancel.\nCan only cancel if status is JOINABLE or READY.",
+        "operationId": "cancel_partner_request_partner_request__pr_id__cancel_put",
+        "parameters": [
+          {
+            "name": "pr_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pr Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerRequest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/partner_request/{pr_id}/status/next": {
+      "put": {
+        "tags": [
+          "main"
+        ],
+        "summary": "Next Status",
+        "description": "Move partner request to next status.\n\nStatus progression: DRAFT -> JOINABLE -> READY -> PERFORMING -> SETTLING -> CLOSED\nOnly the admin (creator) can change status.",
+        "operationId": "next_status_partner_request__pr_id__status_next_put",
+        "parameters": [
+          {
+            "name": "pr_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pr Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerRequest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/com/chat/{chat_id}/messages": {
+      "get": {
+        "tags": [
+          "communication"
+        ],
+        "summary": "Get Chat Messages",
+        "description": "Get messages from a chat.\n\nSupports pagination and ordering.\nRequires authentication.",
+        "operationId": "get_chat_messages_com_chat__chat_id__messages_get",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Chat Id"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Start"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 6,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "desc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Message"
+                  },
+                  "title": "Response Get Chat Messages Com Chat  Chat Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/com/chat/mine": {
+      "get": {
+        "tags": [
+          "communication"
+        ],
+        "summary": "Get My Chats",
+        "description": "Get chats for current user.\n\nOptionally filter by chat type.",
+        "operationId": "get_my_chats_com_chat_mine_get",
+        "parameters": [
+          {
+            "name": "chat_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ChatType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chat Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "title": "Response Get My Chats Com Chat Mine Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/com/chat/message/plain": {
+      "post": {
+        "tags": [
+          "communication"
+        ],
+        "summary": "Send Plain Message",
+        "description": "Send a plain text message to a chat.\n\nCreates a new message with PLAIN type.",
+        "operationId": "send_plain_message_com_chat_message_plain_post",
+        "parameters": [
+          {
+            "name": "to_chat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "To Chat"
+            }
+          },
+          {
+            "name": "content",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Content"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/com/chat/message/{message_id}/viewed": {
+      "put": {
+        "tags": [
+          "communication"
+        ],
+        "summary": "Mark Message Viewed",
+        "description": "Mark a message as viewed by the current user.\n\nAdds the user to the viewed list if not already present.",
+        "operationId": "mark_message_viewed_com_chat_message__message_id__viewed_put",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Message Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/com/chat/direct_message/{to_id}": {
+      "put": {
+        "tags": [
+          "communication"
+        ],
+        "summary": "Create Dm Chat",
+        "description": "Create or get a direct message chat.\n\nIf a DM chat already exists between the users, returns it.\nOtherwise creates a new one.",
+        "operationId": "create_dm_chat_com_chat_direct_message__to_id__put",
+        "parameters": [
+          {
+            "name": "to_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "To Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chat"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/profile/me": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Get My Profile",
+        "description": "Get current user's profile.",
+        "operationId": "get_my_profile_account_profile_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseProfile"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Update My Profile",
+        "description": "Update current user's profile.\n\nOnly updates fields that are provided (partial update).",
+        "operationId": "update_my_profile_account_profile_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseProfileEditable"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseProfile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/config/me": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Get My Config",
+        "description": "Get current user's config.",
+        "operationId": "get_my_config_account_config_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/geo/me": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Get My Geo Profile",
+        "description": "Get current user's geo profile.",
+        "operationId": "get_my_geo_profile_account_geo_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeoProfile"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountConfig": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "public_profile_fields": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Profile Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "AccountConfig",
+        "description": "\u8d26\u53f7\u914d\u7f6e"
+      },
+      "BaseProfile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "wallpaper": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallpaper"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender"
+          },
+          "mbti": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mbti"
+          },
+          "age_range": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Range"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "BaseProfile",
+        "description": "\u8d26\u53f7\u57fa\u7840\u8d44\u6599"
+      },
+      "BaseProfileEditable": {
+        "properties": {
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "wallpaper": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallpaper"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender"
+          },
+          "mbti": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mbti"
+          },
+          "age_range": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Range"
+          }
+        },
+        "type": "object",
+        "title": "BaseProfileEditable",
+        "description": "Editable fields for BaseProfile."
+      },
+      "Chat": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "open"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "members": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Members"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "created_by"
+        ],
+        "title": "Chat",
+        "description": "\u804a\u5929\u6570\u636e\u6a21\u578b"
+      },
+      "ChatType": {
+        "type": "string",
+        "enum": [
+          "direct_message",
+          "partner_request",
+          "partner_application"
+        ],
+        "title": "ChatType",
+        "description": "\u804a\u5929\u7c7b\u578b"
+      },
+      "GeoProfile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workplace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workplace"
+          },
+          "residence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "GeoProfile",
+        "description": "\u5e10\u53f7\u5730\u7406\u8d44\u6599"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Message": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "chat": {
+            "type": "integer",
+            "title": "Chat"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "viewed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewed"
+          },
+          "forwarded_from": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forwarded From"
+          },
+          "replied_to": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replied To"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "plain"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chat",
+          "created_by",
+          "content"
+        ],
+        "title": "Message",
+        "description": "\u6d88\u606f\u6570\u636e\u6a21\u578b"
+      },
+      "PartnerRequest": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "draft"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat"
+          },
+          "contract": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "introduction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Introduction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "created_by"
+        ],
+        "title": "PartnerRequest",
+        "description": "Partner request database model."
+      },
+      "PartnerRequestListType": {
+        "type": "string",
+        "enum": [
+          "favorite",
+          "ongoing",
+          "history",
+          "draft"
+        ],
+        "title": "PartnerRequestListType",
+        "description": "\u642d\u5b50\u8bf7\u6c42\u5217\u8868\u7c7b\u578b"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
