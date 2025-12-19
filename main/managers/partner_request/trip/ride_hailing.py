@@ -53,9 +53,11 @@ class RideHailingPRManager(TripPRManager):
         """
         logger.info("Create ride-hailing PR", account_id=account_id)
         
-        should_close_session = db is None
         if db is None:
             db = SessionLocal()
+            should_close_session = True
+        else:
+            should_close_session = False
         
         try:
             # Create base partner request

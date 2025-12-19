@@ -89,7 +89,11 @@ def create_partner_request(
     elif pr_type == PartnerRequestL2Type.COMMUTE:
         pr_id = CommutePRManager.create(account_id, data, db)
     else:
-        raise HTTPException(status_code=400, detail=f"Unsupported partner request type: {pr_type}")
+        supported_types = ", ".join([t.value for t in [PartnerRequestL2Type.RIDE_HAILING, PartnerRequestL2Type.COMMUTE]])
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported partner request type: {pr_type}. Supported types: {supported_types}"
+        )
 
     return pr_id
 

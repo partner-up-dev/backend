@@ -1,5 +1,6 @@
 """Create request schemas for trip partner requests"""
 
+import datetime
 from typing import Optional as Opt, List, Literal, Annotated
 from pydantic import BaseModel, Field
 
@@ -7,7 +8,6 @@ from .base import TripPreference
 from .ride_hailing import RideHailingPreference
 from ...base.route import RouteItem
 from ...base import Weekday
-import datetime
 
 
 class RideHailingPRCreate(BaseModel):
