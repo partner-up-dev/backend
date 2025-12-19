@@ -29,6 +29,9 @@ from .managers.partner_request.trip.commute import CommutePRManager
 
 router = fastapi.APIRouter()
 
+# Supported partner request types for creation
+SUPPORTED_CREATE_TYPES = [PartnerRequestL2Type.RIDE_HAILING, PartnerRequestL2Type.COMMUTE]
+
 
 @router.get("/partner_request/list/{list_type}")
 def get_partner_request_list(
@@ -89,10 +92,10 @@ def create_partner_request(
     elif pr_type == PartnerRequestL2Type.COMMUTE:
         pr_id = CommutePRManager.create(account_id, data, db)
     else:
-        supported_types = ", ".join([t.value for t in [PartnerRequestL2Type.RIDE_HAILING, PartnerRequestL2Type.COMMUTE]])
+        supported = ", ".join([t.value for t in SUPPORTED_CREATE_TYPES])
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported partner request type: {pr_type}. Supported types: {supported_types}"
+            detail=f"Unsupported partner request type: {pr_type}. Supported types: {supported}"
         )
 
     return pr_id
