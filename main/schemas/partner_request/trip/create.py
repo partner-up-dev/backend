@@ -1,7 +1,7 @@
 """Create request schemas for trip partner requests"""
 
-from typing import Optional as Opt, List
-from pydantic import BaseModel
+from typing import Optional as Opt, List, Literal, Annotated
+from pydantic import BaseModel, Field
 
 from .base import TripPreference
 from .ride_hailing import RideHailingPreference
@@ -13,6 +13,7 @@ import datetime
 class RideHailingPRCreate(BaseModel):
     """网约车搭子请求创建请求"""
 
+    type: Literal["ride_hailing"] = "ride_hailing"
     title: Opt[str] = None
     introduction: Opt[str] = None
     route: List[RouteItem] = []
@@ -23,6 +24,7 @@ class RideHailingPRCreate(BaseModel):
 class CommutePRCreate(BaseModel):
     """通勤搭子请求创建请求"""
 
+    type: Literal["commute"] = "commute"
     title: Opt[str] = None
     introduction: Opt[str] = None
     route: List[RouteItem] = []
@@ -30,3 +32,10 @@ class CommutePRCreate(BaseModel):
     on_at: Opt[datetime.time] = None
     off_at: Opt[datetime.time] = None
     workdays: Opt[List[Weekday]] = None
+
+
+PartnerRequestCreate = Annotated[
+    RideHailingPRCreate | CommutePRCreate,
+    Field(discriminator="type")
+]
+

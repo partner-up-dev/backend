@@ -19,7 +19,11 @@ from .schemas.partner_request import (
     PartnerRequestListType,
     PartnerRequestL2Type,
 )
-from .schemas.partner_request.trip.create import RideHailingPRCreate, CommutePRCreate
+from .schemas.partner_request.trip.create import (
+    PartnerRequestCreate,
+    RideHailingPRCreate,
+    CommutePRCreate,
+)
 from .managers.partner_request.trip.ride_hailing import RideHailingPRManager
 from .managers.partner_request.trip.commute import CommutePRManager
 
@@ -69,7 +73,7 @@ def get_partner_request_list(
 @router.post("/partner_request/{pr_type}")
 def create_partner_request(
     pr_type: PartnerRequestL2Type,
-    data: RideHailingPRCreate | CommutePRCreate,
+    data: PartnerRequestCreate,
     auth: AuthInfo = Depends(require_auth),
     db: sqlmodel.Session = Depends(get_db_session),
 ) -> PartnerRequestRef:

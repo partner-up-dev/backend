@@ -42,6 +42,7 @@ class TestCreatePartnerRequest:
                     response = client.post(
                         "/partner_request/ride_hailing",
                         json={
+                            "type": "ride_hailing",
                             "title": "Test Ride Hailing",
                             "introduction": "Test intro",
                             "route": [
@@ -78,6 +79,7 @@ class TestCreatePartnerRequest:
                     response = client.post(
                         "/partner_request/commute",
                         json={
+                            "type": "commute",
                             "title": "Test Commute",
                             "introduction": "Test intro",
                             "route": [
