@@ -18,7 +18,7 @@ class RideHailingPRCreate(BaseModel):
     introduction: Opt[str] = None
     route: List[RouteItem] = []
     trip_preference: Opt[TripPreference] = None
-    ride_hailing_preference: Opt[RideHailingPreference] = None
+    ride_hailing_preference: RideHailingPreference = RideHailingPreference()
 
 
 class CommutePRCreate(BaseModel):

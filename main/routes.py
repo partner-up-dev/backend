@@ -85,12 +85,8 @@ def create_partner_request(
     account_id = auth.user_id
 
     if pr_type == PartnerRequestL2Type.RIDE_HAILING:
-        if not isinstance(data, RideHailingPRCreate):
-            raise HTTPException(status_code=400, detail="Invalid data for ride_hailing type")
         pr_id = RideHailingPRManager.create(account_id, data, db)
     elif pr_type == PartnerRequestL2Type.COMMUTE:
-        if not isinstance(data, CommutePRCreate):
-            raise HTTPException(status_code=400, detail="Invalid data for commute type")
         pr_id = CommutePRManager.create(account_id, data, db)
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported partner request type: {pr_type}")

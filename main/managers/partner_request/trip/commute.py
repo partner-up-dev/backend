@@ -75,7 +75,7 @@ class CommutePRManager(TripPRManager):
                 trip_preference=data.trip_preference,
                 on_at=data.on_at,
                 off_at=data.off_at,
-                workdays=data.workdays if data.workdays else None,
+                workdays=data.workdays,
             )
             db.add(content)
             db.commit()
