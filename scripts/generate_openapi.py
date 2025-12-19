@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Generate OpenAPI JSON documentation."""
+"""Generate OpenAPI JSON documentation.
+
+This script creates a FastAPI application instance solely for extracting
+the OpenAPI schema. No server is started and no database connections are made,
+so it works safely in CI environments without configuration.
+"""
 
 import json
 import sys
@@ -14,7 +19,7 @@ from run import create_app
 
 def generate_openapi_json():
     """Generate OpenAPI JSON documentation from the FastAPI app."""
-    # Create the FastAPI application
+    # Create the FastAPI application (no server started, no DB connections)
     app = create_app()
     
     # Get the OpenAPI schema
