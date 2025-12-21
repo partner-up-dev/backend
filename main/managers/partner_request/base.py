@@ -108,6 +108,10 @@ class PartnerRequestManager:
             if not pr.is_admin(account_id):
                 raise ValueError("Must be admin")
 
+            # Idempotent: if already published, just return
+            if pr.status == PartnerRequestStatus.JOINABLE.value:
+                return pr
+
             if pr.status != PartnerRequestStatus.DRAFT.value:
                 raise ValueError("Can only publish draft")
 
@@ -139,6 +143,10 @@ class PartnerRequestManager:
 
             if not pr.is_admin(account_id):
                 raise ValueError("Must be admin")
+
+            # Idempotent: if already cancelled, just return
+            if pr.status == PartnerRequestStatus.CANCELLED.value:
+                return pr
 
             if pr.status not in [
                 PartnerRequestStatus.JOINABLE.value,

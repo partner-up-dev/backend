@@ -1,0 +1,41 @@
+"""Create request schemas for trip partner requests"""
+
+import datetime
+from typing import Optional as Opt, List, Literal, Annotated
+from pydantic import BaseModel, Field
+
+from .base import TripPreference
+from .ride_hailing import RideHailingPreference
+from ...base.route import RouteItem
+from ...base import Weekday
+
+
+class RideHailingPRCreate(BaseModel):
+    """网约车搭子请求创建请求"""
+
+    type: Literal["ride_hailing"] = "ride_hailing"
+    title: Opt[str] = None
+    introduction: Opt[str] = None
+    route: List[RouteItem] = []
+    trip_preference: Opt[TripPreference] = None
+    ride_hailing_preference: RideHailingPreference = RideHailingPreference()
+
+
+class CommutePRCreate(BaseModel):
+    """通勤搭子请求创建请求"""
+
+    type: Literal["commute"] = "commute"
+    title: Opt[str] = None
+    introduction: Opt[str] = None
+    route: List[RouteItem] = []
+    trip_preference: Opt[TripPreference] = None
+    on_at: Opt[datetime.time] = None
+    off_at: Opt[datetime.time] = None
+    workdays: Opt[List[Weekday]] = None
+
+
+PartnerRequestCreate = Annotated[
+    RideHailingPRCreate | CommutePRCreate,
+    Field(discriminator="type")
+]
+

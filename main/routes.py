@@ -17,9 +17,20 @@ from .schemas.partner_request import (
     PartnerRequestRef,
     PartnerRequestStatus,
     PartnerRequestListType,
+    PartnerRequestL2Type,
 )
+from .schemas.partner_request.trip.create import (
+    PartnerRequestCreate,
+    RideHailingPRCreate,
+    CommutePRCreate,
+)
+from .managers.partner_request.trip.ride_hailing import RideHailingPRManager
+from .managers.partner_request.trip.commute import CommutePRManager
 
 router = fastapi.APIRouter()
+
+# Supported partner request types for creation
+SUPPORTED_CREATE_TYPES = [PartnerRequestL2Type.RIDE_HAILING, PartnerRequestL2Type.COMMUTE]
 
 
 @router.get("/partner_request/list/{list_type}")
@@ -62,6 +73,34 @@ def get_partner_request_list(
     return result
 
 
+@router.post("/partner_request/{pr_type}")
+def create_partner_request(
+    pr_type: PartnerRequestL2Type,
+    data: PartnerRequestCreate,
+    auth: AuthInfo = Depends(require_auth),
+    db: sqlmodel.Session = Depends(get_db_session),
+) -> PartnerRequestRef:
+    """Create a partner request.
+
+    Creates both base PartnerRequest and type-specific content records.
+    The type of partner request is determined by the pr_type path parameter.
+    """
+    account_id = auth.user_id
+
+    if pr_type == PartnerRequestL2Type.RIDE_HAILING:
+        pr_id = RideHailingPRManager.create(account_id, data, db)
+    elif pr_type == PartnerRequestL2Type.COMMUTE:
+        pr_id = CommutePRManager.create(account_id, data, db)
+    else:
+        supported = ", ".join([t.value for t in SUPPORTED_CREATE_TYPES])
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported partner request type: {pr_type}. Supported types: {supported}"
+        )
+
+    return pr_id
+
+
 @router.put("/partner_request/{pr_id}/publish")
 def publish_partner_request(
     pr_id: PartnerRequestRef,
@@ -72,6 +111,7 @@ def publish_partner_request(
 
     Changes status from DRAFT to JOINABLE.
     Only the admin (creator) can publish.
+    Idempotent: if already JOINABLE, returns the request without error.
     """
     pr = db.get(PartnerRequest, pr_id)
     if not pr:
@@ -79,6 +119,10 @@ def publish_partner_request(
 
     if not pr.is_admin(auth.user_id):
         raise HTTPException(status_code=403, detail="Must be admin")
+
+    # Idempotent: if already published, just return
+    if pr.status == PartnerRequestStatus.JOINABLE.value:
+        return pr
 
     if pr.status != PartnerRequestStatus.DRAFT.value:
         raise HTTPException(status_code=409, detail="Can only publish draft")
@@ -101,6 +145,7 @@ def cancel_partner_request(
     Changes status to CANCELLED.
     Only the admin (creator) can cancel.
     Can only cancel if status is JOINABLE or READY.
+    Idempotent: if already CANCELLED, returns the request without error.
     """
     pr = db.get(PartnerRequest, pr_id)
     if not pr:
@@ -108,6 +153,10 @@ def cancel_partner_request(
 
     if not pr.is_admin(auth.user_id):
         raise HTTPException(status_code=403, detail="Must be admin")
+
+    # Idempotent: if already cancelled, just return
+    if pr.status == PartnerRequestStatus.CANCELLED.value:
+        return pr
 
     if pr.status not in [PartnerRequestStatus.JOINABLE.value, PartnerRequestStatus.READY.value]:
         raise HTTPException(status_code=409, detail="Cannot cancel")
@@ -117,33 +166,3 @@ def cancel_partner_request(
     db.commit()
     db.refresh(pr)
     return pr
-
-
-@router.put("/partner_request/{pr_id}/status/next")
-def next_status(
-    pr_id: PartnerRequestRef,
-    auth: AuthInfo = Depends(require_auth),
-    db: sqlmodel.Session = Depends(get_db_session),
-) -> PartnerRequest:
-    """Move partner request to next status.
-
-    Status progression: DRAFT -> JOINABLE -> READY -> PERFORMING -> SETTLING -> CLOSED
-    Only the admin (creator) can change status.
-    """
-    pr = db.get(PartnerRequest, pr_id)
-    if not pr:
-        raise HTTPException(status_code=404, detail="Partner request not found")
-
-    if not pr.is_admin(auth.user_id):
-        raise HTTPException(status_code=403, detail="Must be admin")
-
-    current_status = PartnerRequestStatus(pr.status)
-    try:
-        next_status = current_status.next()
-        pr.status = next_status.value
-        db.add(pr)
-        db.commit()
-        db.refresh(pr)
-        return pr
-    except ValueError:
-        raise HTTPException(status_code=409, detail="No next status available")
